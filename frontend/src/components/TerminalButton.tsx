@@ -1,12 +1,13 @@
 "use client";
-import React, { ButtonHTMLAttributes } from 'react';
+import React from 'react';
 import { LucideIcon } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, HTMLMotionProps } from 'framer-motion';
 
-interface TerminalButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface TerminalButtonProps extends HTMLMotionProps<"button"> {
   variant?: 'primary' | 'secondary' | 'danger';
   icon?: LucideIcon;
   fullWidth?: boolean;
+  children?: React.ReactNode;
 }
 
 export function TerminalButton({ 
