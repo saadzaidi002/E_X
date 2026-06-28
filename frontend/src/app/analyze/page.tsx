@@ -6,17 +6,28 @@ import { TerminalButton } from '@/components/TerminalButton';
 import { getMethods, getLimits, analyzeFile, downloadBitsZip, downloadPdfReport, Method, Limits, AnalysisResult } from '@/lib/api';
 import { EntropyChart, BitRateChart, BiasChart, NistComplianceChart, EfficiencyChart } from '@/components/charts/ComparisonCharts';
 import { Upload, Play, Download, FileText, Check, AlertTriangle, Loader2, Binary, CheckCircle2 } from 'lucide-react';
+import { useAnalysis } from '@/lib/AnalysisContext';
 
 export default function AnalyzePage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [limits, setLimits] = useState<Limits | null>(null);
-  const [methods, setMethods] = useState<Method[]>([]);
-  const [selectedMethods, setSelectedMethods] = useState<Set<string>>(new Set());
-  
-  const [status, setStatus] = useState<'idle' | 'analyzing' | 'complete' | 'error'>('idle');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [analysisLogs, setAnalysisLogs] = useState<{time: string, msg: string}[]>([]);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const {
+    file,
+    setFile,
+    limits,
+    setLimits,
+    methods,
+    setMethods,
+    selectedMethods,
+    setSelectedMethods,
+    status,
+    setStatus,
+    errorMsg,
+    setErrorMsg,
+    analysisLogs,
+    setAnalysisLogs,
+    result,
+    setResult,
+    resetSession,
+  } = useAnalysis();
 
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -33,8 +44,11 @@ export default function AnalyzePage() {
         setErrorMsg('Failed to initialize API. Backend may be unreachable.');
       }
     }
-    init();
-  }, []);
+    // Only initialize API endpoints if they haven't been loaded yet to preserve session errors / status
+    if (methods.length === 0 || !limits) {
+      init();
+    }
+  }, [methods.length, limits, setLimits, setMethods, setErrorMsg]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -47,7 +61,7 @@ export default function AnalyzePage() {
       setStatus('idle');
       setResult(null);
     }
-  }, []);
+  }, [setFile, setStatus, setResult]);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
@@ -248,7 +262,7 @@ export default function AnalyzePage() {
           )}
           
           <div className="pt-6">
-            <TerminalButton variant="secondary" onClick={() => { setStatus('idle'); setResult(null); setFile(null); setSelectedMethods(new Set()); }} fullWidth>
+            <TerminalButton variant="secondary" onClick={resetSession} fullWidth>
               Start New Analysis Session
             </TerminalButton>
           </div>

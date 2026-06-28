@@ -62,14 +62,16 @@ const mockMethods: Method[] = [
   { id: 'm20', name: 'SipHash', isFast: true },
 ];
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export async function getMethods(): Promise<Method[]> {
-  const res = await fetch('http://localhost:8000/api/methods');
+  const res = await fetch(`${API_BASE}/api/methods`);
   if (!res.ok) throw new Error('Failed to fetch methods');
   return res.json();
 }
 
 export async function getLimits(): Promise<Limits> {
-  const res = await fetch('http://localhost:8000/api/limits');
+  const res = await fetch(`${API_BASE}/api/limits`);
   if (!res.ok) throw new Error('Failed to fetch limits');
   return res.json();
 }
@@ -79,7 +81,7 @@ export async function analyzeFile(file: File, methods: string[]): Promise<Analys
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
   
-  const res = await fetch('http://localhost:8000/api/analyze', {
+  const res = await fetch(`${API_BASE}/api/analyze`, {
     method: 'POST',
     body: formData,
   });
@@ -92,7 +94,7 @@ export async function downloadBitsZip(file: File, methods: string[]): Promise<vo
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
   
-  const res = await fetch('http://localhost:8000/api/download/bits', {
+  const res = await fetch(`${API_BASE}/api/download/bits`, {
     method: 'POST',
     body: formData,
   });
@@ -126,7 +128,7 @@ export async function downloadPdfReport(file: File, methods: string[]): Promise<
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
   
-  const res = await fetch('http://localhost:8000/api/download/pdf', {
+  const res = await fetch(`${API_BASE}/api/download/pdf`, {
     method: 'POST',
     body: formData,
   });

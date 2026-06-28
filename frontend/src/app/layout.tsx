@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: "Quantum random number generator analysis tool",
 };
 
+import { AnalysisProvider } from "@/lib/AnalysisContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,7 +34,9 @@ export default function RootLayout({
           <QuantumBackground />
           <Navbar />
           <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
-            {children}
+            <AnalysisProvider>
+              {children}
+            </AnalysisProvider>
           </main>
         </SmoothScroll>
       </body>

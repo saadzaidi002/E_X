@@ -1,0 +1,12 @@
+.git
+.gitignore
+.vscode
+.idea
+frontend/node_modules
+frontend/.next
+backend/venv
+backend/__pycache__
+__pycache__
+*.pdf
+*.zip
+*.txt

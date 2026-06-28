@@ -331,7 +331,7 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
     # --- Performance Rankings Table ---
     elements.append(Paragraph("Performance Rankings", h1_style))
     
-    table_data = [['Rank', 'Method', 'Score', 'NIST Pass', 'Shannon', 'Bias', 'Throughput (bps)']]
+    table_data = [['Rank', 'Method', 'Score', 'NIST Pass', 'Shannon', 'Min Entropy', 'Bias', 'Throughput (bps)']]
     for i, m in enumerate(ranked_methods):
         table_data.append([
             str(i + 1),
@@ -339,11 +339,12 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
             f"{m['score']:.1f}",
             f"{m['nistPass']}/16",
             f"{m['shannon']:.4f}",
+            f"{m['minEntropy']:.4f}",
             f"{m['bias']:.4f}",
             f"{int(m['bitRate']):,}"
         ])
 
-    t = Table(table_data, colWidths=[40, 110, 50, 70, 70, 60, 100])
+    t = Table(table_data, colWidths=[35, 95, 40, 60, 55, 70, 50, 95])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), rl_colors.HexColor('#0077B6')),
         ('TEXTCOLOR', (0, 0), (-1, 0), rl_colors.white),
