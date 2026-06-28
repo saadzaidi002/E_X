@@ -1,3 +1,13 @@
+---
+title: RN EXTRACTORS
+emoji: 🎲
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # NIST Randomness Testsuit
 
 This is a Python implementation of NIST's A Statistical Test Suite for Random and Pseudorandom Number Generators for Cryptographic Applications
