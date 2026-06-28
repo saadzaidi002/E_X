@@ -20,6 +20,7 @@ export interface ChartData {
   passCount: number;
   failCount: number;
   invalidCount?: number;
+  details?: any[];
 }
 
 export interface AnalysisResult {
