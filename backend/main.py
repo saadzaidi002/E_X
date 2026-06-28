@@ -21,6 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+def read_root():
+    return {"status": "running", "message": "RNG Extractors Backend API is live"}
+
 METHODS = Extractors.get_all_extractors()
 METHODS_DICT = {name: func for name, func in METHODS}
 
