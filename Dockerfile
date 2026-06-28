@@ -17,5 +17,8 @@ COPY backend/ ./backend/
 # Expose port 7860 (Hugging Face Spaces default port)
 EXPOSE 7860
 
+# Set working directory to backend to match local runtime context
+WORKDIR /app/backend
+
 # Run FastAPI app
-CMD ["python", "-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
