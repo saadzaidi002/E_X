@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-quantum-bg: #CAF0F8;
+  --color-quantum-card: #ffffff;
+  --color-quantum-navy: #03045E;
+  --color-quantum-blue: #0077B6;
+  --color-quantum-cyan: #00B4D8;
+  --color-quantum-light: #90E0EF;
+  
+  --font-sans: "Nunito", sans-serif;
+}
+
+:root {
+  --background: var(--color-quantum-bg);
+  --foreground: var(--color-quantum-navy);
+}
+
+* {
+  cursor: none !important; /* Hide default cursor everywhere */
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-quantum-navy);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-quantum-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-quantum-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-quantum-cyan);
+}
+
+::selection {
+  background-color: var(--color-quantum-light);
+  color: var(--color-quantum-navy);
+}
