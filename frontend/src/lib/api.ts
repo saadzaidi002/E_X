@@ -108,27 +108,15 @@ export async function downloadBitsZip(file: File, methods: string[]): Promise<vo
   });
   if (!res.ok) throw new Error('Failed to download');
   const blob = await res.blob();
-  try {
-    const handle = await (window as any).showSaveFilePicker({
-      suggestedName: 'extracted_bits.zip',
-      types: [{
-        description: 'ZIP Archive',
-        accept: {'application/zip': ['.zip']},
-      }],
-    });
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-  } catch (err: any) {
-    if (err.name !== 'AbortError') {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "extracted_bits.zip";
-      a.click();
-      window.URL.revokeObjectURL(url);
-    }
-  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = "extracted_bits.zip";
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 export async function downloadPdfReport(analysisData: AnalysisResult): Promise<void> {
@@ -145,25 +133,13 @@ export async function downloadPdfReport(analysisData: AnalysisResult): Promise<v
   });
   if (!res.ok) throw new Error('Failed to download');
   const blob = await res.blob();
-  try {
-    const handle = await (window as any).showSaveFilePicker({
-      suggestedName: 'RNG_Report.pdf',
-      types: [{
-        description: 'PDF Document',
-        accept: {'application/pdf': ['.pdf']},
-      }],
-    });
-    const writable = await handle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-  } catch (err: any) {
-    if (err.name !== 'AbortError') {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "RNG_Report.pdf";
-      a.click();
-      window.URL.revokeObjectURL(url);
-    }
-  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = "RNG_Report.pdf";
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
