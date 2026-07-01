@@ -39,10 +39,10 @@ export default function AboutPage() {
             </div>
 
             <div className="border border-quantum-light bg-white p-6 rounded-lg shadow-sm hover:border-quantum-blue hover:shadow-md transition-all">
-              <h3 className="font-bold text-quantum-navy text-lg">Dr. Kamran</h3>
+              <h3 className="font-bold text-quantum-navy text-lg">Dr. Muhammad Kamran</h3>
               <p className="text-quantum-blue font-semibold text-sm mt-1">Co-Supervisor &amp; Co-PI, CQT</p>
               <div className="mt-4 flex items-center gap-2 text-sm text-quantum-navy/70 font-semibold">
-                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> CSIT Department
+                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> Department of CS&amp;IT
               </div>
             </div>
 
@@ -50,7 +50,7 @@ export default function AboutPage() {
               <h3 className="font-bold text-quantum-navy text-lg">Dr. Tahir Malik</h3>
               <p className="text-quantum-blue font-semibold text-sm mt-1">Co-Supervisor &amp; Co-PI, CQT</p>
               <div className="mt-4 flex items-center gap-2 text-sm text-quantum-navy/70 font-semibold">
-                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> Department of Telecommunication
+                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> Dept. Of Telecommunications Engineering
               </div>
             </div>
 
@@ -71,7 +71,8 @@ export default function AboutPage() {
             <h3 className="text-base font-bold text-quantum-navy mb-4">Acknowledgements</h3>
             <img src="/cqt-logo.png" alt="CQT Logo" className="w-16 h-16 object-contain mb-3 opacity-80" />
             <p className="text-quantum-navy/80 text-sm max-w-2xl">
-              <span className="font-semibold">Dr. Muhammad Mubashir Khan</span> — Chairman &amp; Director, Centre for Quantum Technologies (CQT), NED University of Engineering &amp; Technology.
+              <span className="font-semibold">Dr. Muhammad Mubashir Khan</span> — Chairman &amp; Director, Centre for Quantum Technologies (CQT),<br />
+              NED University of Engineering &amp; Technology.
             </p>
             <p className="text-quantum-navy/70 text-xs mt-2 italic">
               "We acknowledge the institutional support of the Centre for Quantum Technologies (CQT) under the chairmanship of Dr. Muhammad Mubashir Khan."
