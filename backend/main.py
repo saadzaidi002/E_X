@@ -236,8 +236,20 @@ class PDFRequest(BaseModel):
 
 @app.post("/api/download/pdf")
 async def download_pdf(request: PDFRequest):
+    def replace_none(obj):
+        if isinstance(obj, dict):
+            return {k: replace_none(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [replace_none(v) for v in obj]
+        elif obj is None:
+            return 0
+        return obj
+
+    safe_chart = replace_none(request.chartData)
+    safe_ranked = replace_none(request.rankedMethods)
+
     data_points = []
-    for d in request.chartData:
+    for d in safe_chart:
         data_points.append({
             "method": d["method"],
             "shannon": d.get("shannonEntropy", 0),
@@ -254,7 +266,7 @@ async def download_pdf(request: PDFRequest):
             "dieharder": d.get("dieharder", {})
         })
     
-    pdf_buffer = generate_pdf_report(data_points, request.totalBits, request.rankedMethods)
+    pdf_buffer = generate_pdf_report(data_points, request.totalBits, safe_ranked)
     
     return StreamingResponse(
         pdf_buffer,

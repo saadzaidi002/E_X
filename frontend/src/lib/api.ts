@@ -131,7 +131,14 @@ export async function downloadPdfReport(analysisData: AnalysisResult): Promise<v
       totalBits: analysisData.totalBits || 0,
     }),
   });
-  if (!res.ok) throw new Error('Failed to download');
+  if (!res.ok) {
+    let errorMsg = 'Failed to download';
+    try {
+      const errorText = await res.text();
+      errorMsg += ` - ${res.status}: ${errorText.substring(0, 100)}`;
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
