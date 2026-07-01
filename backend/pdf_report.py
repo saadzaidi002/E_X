@@ -1,4 +1,7 @@
 import io
+import os
+import tempfile
+os.environ['MPLCONFIGDIR'] = tempfile.mkdtemp()
 import time
 import math
 import matplotlib

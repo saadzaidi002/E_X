@@ -154,6 +154,9 @@ export default function AnalyzePage() {
     try {
       await downloadPdfReport(result);
       showToast('PDF Report generated and downloaded.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error downloading PDF: ' + (err.message || 'Check browser console or mixed-content settings.'));
     } finally {
       setDownloadingPdf(false);
     }
