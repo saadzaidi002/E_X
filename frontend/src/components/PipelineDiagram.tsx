@@ -133,19 +133,55 @@ export function PipelineDiagram() {
         </motion.div>
 
         {/* Step 4: Evaluation & Metrics */}
-        <motion.div variants={itemVariants} className="flex flex-col items-center relative z-10 md:mt-10 w-full max-w-4xl">
-          <div className="flex flex-col md:flex-row gap-6 w-full justify-center items-stretch">
-            <div className="bg-white border-2 border-quantum-navy/20 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-navy/50 transition-colors flex-1">
+        <motion.div variants={itemVariants} className="flex flex-col items-center relative z-10 md:mt-10 w-full max-w-6xl px-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 w-full justify-center items-stretch">
+            
+            {/* NIST */}
+            <div className="bg-white border-2 border-quantum-navy/20 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-navy/50 transition-colors">
               <div className="p-3 bg-quantum-light/30 rounded-lg text-quantum-navy flex-shrink-0">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <div>
                 <div className="font-extrabold text-xl text-quantum-navy">NIST SP 800-22</div>
-                <div className="text-quantum-blue text-sm font-bold">Cryptographic Test Suite Evaluation</div>
+                <div className="text-quantum-blue text-sm font-bold">15 Statistical Tests</div>
               </div>
             </div>
 
-            <div className="bg-white border-2 border-quantum-cyan/30 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-cyan/70 transition-colors flex-1">
+            {/* TestU01 */}
+            <div className="bg-white border-2 border-indigo-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-indigo-400 transition-colors">
+              <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600 flex-shrink-0">
+                <Activity className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="font-extrabold text-xl text-quantum-navy">TestU01 Suite</div>
+                <div className="text-quantum-blue text-sm font-bold">SmallCrush (15 Tests)</div>
+              </div>
+            </div>
+
+            {/* Dieharder */}
+            <div className="bg-white border-2 border-orange-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-orange-400 transition-colors">
+              <div className="p-3 bg-orange-50 rounded-lg text-orange-600 flex-shrink-0">
+                <Shield className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="font-extrabold text-xl text-quantum-navy">Dieharder</div>
+                <div className="text-quantum-blue text-sm font-bold">Advanced Test Battery</div>
+              </div>
+            </div>
+
+            {/* Compression */}
+            <div className="bg-white border-2 border-emerald-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-emerald-400 transition-colors">
+              <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600 flex-shrink-0">
+                <Network className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="font-extrabold text-xl text-quantum-navy">Compression Tests</div>
+                <div className="text-quantum-blue text-sm font-bold">Gzip, LZMA, Bzip2, Deflate</div>
+              </div>
+            </div>
+
+            {/* Performance Metrics */}
+            <div className="bg-white border-2 border-quantum-cyan/30 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-cyan/70 transition-colors md:col-span-2 lg:col-span-2">
               <div className="p-3 bg-cyan-50 rounded-lg text-quantum-cyan flex-shrink-0">
                 <BarChart2 className="w-7 h-7" />
               </div>
@@ -156,6 +192,7 @@ export function PipelineDiagram() {
                 </div>
               </div>
             </div>
+            
           </div>
           <div className="w-0.5 h-10 bg-quantum-light mt-4 relative">
             <ArrowDown className="absolute -bottom-3 -left-2.5 text-quantum-light w-5 h-5" />

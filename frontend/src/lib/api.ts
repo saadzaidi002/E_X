@@ -20,7 +20,11 @@ export interface ChartData {
   passCount: number;
   failCount: number;
   invalidCount?: number;
+  totalCount?: number;
   details?: any[];
+  compression?: any;
+  testu01?: any;
+  dieharder?: any;
 }
 
 export interface AnalysisResult {
@@ -36,6 +40,9 @@ export interface AnalysisResult {
     minEntropy: number;
     bias: number;
     bitRate: number;
+    compressionPass?: number;
+    testu01Pass?: number;
+    dieharderPass?: number;
   }[];
 }
 

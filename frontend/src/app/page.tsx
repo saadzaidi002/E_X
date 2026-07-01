@@ -78,8 +78,9 @@ export default function Home() {
             <div className="p-3 bg-quantum-light/30 rounded-lg mb-4 w-fit text-quantum-navy">
               <Shield className="w-6 h-6" />
             </div>
-            <div className="text-4xl font-sans font-extrabold text-quantum-navy mb-1">15</div>
-            <div className="text-sm text-quantum-blue font-bold">NIST Statistical Tests</div>
+            <div className="text-4xl font-sans font-extrabold text-quantum-navy mb-1">4</div>
+            <div className="text-sm text-quantum-blue font-bold">Validation Suites</div>
+            <div className="text-[11px] text-quantum-navy/70 font-semibold mt-1">NIST, TestU01, Dieharder, Compression</div>
           </TerminalCard>
         </motion.div>
 
@@ -119,8 +120,9 @@ export default function Home() {
               <Shield className="w-6 h-6" />
             </div>
             <div>
-              <div className="text-2xl font-sans font-extrabold text-quantum-navy">15</div>
-              <div className="text-sm text-quantum-blue font-bold">NIST Statistical Tests</div>
+              <div className="text-2xl font-sans font-extrabold text-quantum-navy">4</div>
+              <div className="text-sm text-quantum-blue font-bold">Validation Suites</div>
+              <div className="text-[11px] text-quantum-navy/70 font-semibold mt-0.5">NIST, TestU01, Dieharder, Compression</div>
             </div>
           </div>
         </TerminalCard>

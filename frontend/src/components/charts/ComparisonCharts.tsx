@@ -112,7 +112,7 @@ function ChartWrapper({
                                 test.status === 'fail' ? 'bg-[#c0392b]/10 text-[#c0392b]' : 
                                 'bg-[#95a5a6]/10 text-[#95a5a6]'
                               }`}>
-                                {test.status}
+                                {test.status === 'invalid' ? 'Insufficient data' : test.status}
                               </span>
                             </div>
                           )) : (
@@ -222,7 +222,7 @@ export function NistComplianceChart({ data }: ChartProps) {
           <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
           <Bar onClick={handleBarClick} dataKey="passCount" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 4, 4]} animationBegin={0} animationDuration={800} cursor="pointer" />
           <Bar onClick={handleBarClick} dataKey="failCount" name="Fail" stackId="a" fill="#c0392b" animationBegin={0} animationDuration={800} cursor="pointer" />
-          <Bar onClick={handleBarClick} dataKey="invalidCount" name="Invalid" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} cursor="pointer" />
+          <Bar onClick={handleBarClick} dataKey="invalidCount" name="Insufficient data" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} cursor="pointer" />
         </BarChart>
       </ResponsiveContainer>
     </ChartWrapper>
@@ -245,6 +245,109 @@ export function EfficiencyChart({ data }: ChartProps) {
           <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} tickFormatter={(val) => (val < 1 ? val.toFixed(1) : Math.round(val)) + 'ms'} />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
           <Bar dataKey="executionTime" name="Execution Time (Lower is Better)" fill="#9b59b6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartWrapper>
+  );
+}
+
+export function CompressionChart({ data }: ChartProps) {
+  const processedData = data.map(d => {
+    const isInvalid = d.compression?.invalid || (d.compression?.pass_count === 0 && d.compression?.overall_status === 'FAIL' && !d.compression?.algorithms?.length);
+    return {
+      method: d.method,
+      pass: isInvalid ? 0 : d.compression?.pass_count || 0,
+      fail: isInvalid ? 0 : 4 - (d.compression?.pass_count || 0),
+      invalid: isInvalid ? 4 : 0
+    };
+  });
+  const sortedData = [...processedData].sort((a, b) => {
+    if (a.invalid !== b.invalid) return a.invalid - b.invalid;
+    return a.pass - b.pass;
+  });
+
+  return (
+    <ChartWrapper title="Compression Tests (4 Algorithms)" data={sortedData as any}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
+          <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} domain={[0, 4]} axisLine={false} tickLine={false} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
+          <Bar dataKey="pass" name="Pass (>= 0.999 ratio)" stackId="a" fill="#0077B6" radius={[0, 0, 4, 4]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="fail" name="Fail" stackId="a" fill="#c0392b" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="invalid" name="Insufficient Data" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartWrapper>
+  );
+}
+
+export function TestU01Chart({ data }: ChartProps) {
+  const processedData = data.map(d => {
+    const isInvalid = d.testu01?.error || (!d.testu01?.pass && !d.testu01?.fail);
+    return {
+      method: d.method,
+      pass: isInvalid ? 0 : d.testu01?.pass || 0,
+      fail: isInvalid ? 0 : d.testu01?.fail || 0,
+      invalid: isInvalid ? 15 : 0,
+      total: 15
+    };
+  });
+  const sortedData = [...processedData].sort((a, b) => {
+    if (a.invalid !== b.invalid) return a.invalid - b.invalid;
+    return a.pass - b.pass;
+  });
+
+  return (
+    <ChartWrapper title="TestU01 SmallCrush" data={sortedData as any}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
+          <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
+          <Bar dataKey="pass" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 4, 4]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="fail" name="Fail" stackId="a" fill="#c0392b" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="invalid" name="Unavailable / Missing Lib" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartWrapper>
+  );
+}
+
+export function DieharderChart({ data }: ChartProps) {
+  const processedData = data.map(d => {
+    const isInvalid = d.dieharder?.error || d.dieharder?.insufficient || (!d.dieharder?.pass && !d.dieharder?.fail && !d.dieharder?.weak);
+    return {
+      method: d.method,
+      pass: isInvalid ? 0 : d.dieharder?.pass || 0,
+      weak: isInvalid ? 0 : d.dieharder?.weak || 0,
+      fail: isInvalid ? 0 : d.dieharder?.fail || 0,
+      invalid: isInvalid ? 100 : 0,
+      total: 100
+    };
+  });
+  const sortedData = [...processedData].sort((a, b) => {
+    if (a.invalid !== b.invalid) return a.invalid - b.invalid;
+    return a.pass - b.pass;
+  });
+
+  return (
+    <ChartWrapper title="Dieharder Suite" data={sortedData as any}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
+          <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
+          <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
+          <Bar dataKey="pass" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="weak" name="Weak" stackId="a" fill="#F39C12" radius={[0, 0, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="fail" name="Fail" stackId="a" fill="#c0392b" radius={[0, 0, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="invalid" name="Insufficient Data / Unavailable" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
         </BarChart>
       </ResponsiveContainer>
     </ChartWrapper>

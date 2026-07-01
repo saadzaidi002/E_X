@@ -7,14 +7,21 @@ import { AlertCircle, Binary, FileText } from 'lucide-react';
 const formatSize = (val: number, isBits: boolean) => {
   const bytes = isBits ? val / 8 : val;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
 
 export default function GuidePage() {
   const [limits, setLimits] = useState<Limits | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    getLimits().then(setLimits);
+    getLimits()
+      .then(setLimits)
+      .catch((err) => {
+        console.error(err);
+        setError(true);
+      });
   }, []);
 
   return (
@@ -56,7 +63,11 @@ export default function GuidePage() {
         </TerminalCard>
 
         <TerminalCard delay={0.4} title="System Performance Tiers">
-          {limits ? (
+          {error ? (
+            <div className="flex items-center justify-center py-12 text-red-500 font-bold text-sm bg-red-50 rounded-lg border border-red-200">
+              Failed to load system limits. Please ensure the backend server is running.
+            </div>
+          ) : limits ? (
             <div className="space-y-6">
               <div className="flex items-start gap-3 p-4 bg-quantum-light/20 border border-quantum-cyan rounded-lg text-sm text-quantum-navy font-bold">
                 <AlertCircle className="w-5 h-5 text-quantum-blue flex-shrink-0" />
@@ -82,14 +93,14 @@ export default function GuidePage() {
                   </div>
                   <div className="sm:text-right flex sm:block items-center justify-between">
                     <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-xs font-bold rounded-full sm:mb-1.5">Restricted</span>
-                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: ~1-2 mins</p>
+                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: Varies by size</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-purple-800 text-lg">Tier 3: Extended Processing</h3>
-                    <p className="text-sm text-purple-700 font-medium mt-1">Input size &gt; {formatSize(limits.maxFileSize, false)} (including 500+ MB files)</p>
+                    <p className="text-sm text-purple-700 font-medium mt-1">Supports massive-scale datasets up to {formatSize(limits.maxFileSize, false)}</p>
                     <p className="text-xs text-purple-600/80 font-medium mt-1">Processing will take significantly longer. User assumes responsibility for extended wait times.</p>
                   </div>
                   <div className="sm:text-right flex sm:block items-center justify-between">
@@ -104,6 +115,25 @@ export default function GuidePage() {
               <div className="w-6 h-6 border-4 border-quantum-blue border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
+        </TerminalCard>
+
+        <TerminalCard delay={0.6} title="Advanced Randomness Testing">
+          <div className="space-y-6">
+            <p className="text-quantum-navy/80 font-medium leading-relaxed">
+              In addition to the standard NIST SP 800-22 tests, this system evaluates extractors using three advanced methods:
+            </p>
+            <ul className="list-disc ml-5 space-y-3 text-quantum-navy/80 text-sm">
+              <li>
+                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is ≥ 0.999.
+              </li>
+              <li>
+                <strong className="text-quantum-navy">TestU01 SmallCrush:</strong> A robust C library of empirical statistical tests. The SmallCrush battery runs 15 distinct tests designed to find subtle patterns in uniform random number generators.
+              </li>
+              <li>
+                <strong className="text-quantum-navy">Dieharder:</strong> A comprehensive randomness testing suite. Note that Dieharder requires a substantial dataset (at least 1,000,000 bits) to produce meaningful results and may not be available in all local development environments.
+              </li>
+            </ul>
+          </div>
         </TerminalCard>
       </div>
     </div>

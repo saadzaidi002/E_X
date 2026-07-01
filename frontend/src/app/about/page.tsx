@@ -20,7 +20,7 @@ export default function AboutPage() {
         <div className="flex flex-col items-center justify-center p-8 bg-white border border-quantum-light shadow-sm rounded-xl text-center">
           <img src="/ned-logo.png" alt="NED University Logo" className="w-24 h-24 object-contain mb-4" />
           <h2 className="text-xl font-bold text-quantum-navy">NED University of Engineering and Technology</h2>
-          <p className="text-quantum-navy/70 font-semibold mt-2">Department of Physics &amp; Center of Quantum Technologies (CQT)</p>
+          <p className="text-quantum-navy/70 font-semibold mt-2">Department of Physics &amp; Centre for Quantum Technologies (CQT)</p>
         </div>
 
         <div>
@@ -65,10 +65,23 @@ export default function AboutPage() {
             </div>
           </div>
         </div>
+
+        <div className="mt-8 border-t border-quantum-light pt-8">
+          <div className="flex flex-col items-center justify-center text-center">
+            <h3 className="text-base font-bold text-quantum-navy mb-4">Acknowledgements</h3>
+            <img src="/cqt-logo.png" alt="CQT Logo" className="w-16 h-16 object-contain mb-3 opacity-80" />
+            <p className="text-quantum-navy/80 text-sm max-w-2xl">
+              <span className="font-semibold">Dr. Muhammad Mubashir Khan</span> — Chairman, Department of Computer Science &amp; Information Technology (CSIT), NED University of Engineering &amp; Technology.
+            </p>
+            <p className="text-quantum-navy/70 text-xs mt-2 italic">
+              "We acknowledge the institutional support of the Centre for Quantum Technologies (CQT) under the chairmanship of Dr. Muhammad Mubashir Khan."
+            </p>
+          </div>
+        </div>
         
         <div className="text-center pt-10">
           <p className="text-sm font-bold text-quantum-navy/50">
-            A research collaboration between the Department of Physics, NED University of Engineering & Technology, and the Center of Quantum Technologies (CQT).
+            A research collaboration between the Department of Physics, NED University of Engineering & Technology, and the Centre for Quantum Technologies (CQT).
           </p>
         </div>
       </div>

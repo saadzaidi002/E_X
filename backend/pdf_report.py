@@ -73,9 +73,9 @@ def generate_entropy_chart(data_points):
 
     ax.set_xticks(x)
     ax.set_xticklabels(names, rotation=45, ha='right', fontsize=9)
-    ax.set_ylim(0.90, 1.05)
+    ax.set_ylim(0, 1.1)
     ax.grid(axis='y', linestyle='--', alpha=0.3)
-    ax.legend(loc='upper right', frameon=False)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=2, frameon=False, fontsize=9)
     ax.set_title("Entropy Comparison (Higher is Better)", fontsize=12, fontweight='bold', pad=15)
     
     # Value labels only if <= 10 methods so it's not overcrowded, else no labels for entropy
@@ -99,7 +99,7 @@ def generate_nist_chart(data_points):
 
     ax.barh(y, passes, color=COLOR_PASS, label='Pass')
     ax.barh(y, fails, left=passes, color=COLOR_FAIL, label='Fail')
-    ax.barh(y, invalids, left=[p+f for p,f in zip(passes, fails)], color=COLOR_INVALID, label='Invalid')
+    ax.barh(y, invalids, left=[p+f for p,f in zip(passes, fails)], color=COLOR_INVALID, label='Insufficient data')
 
     for i, p in enumerate(passes):
         if p > 0: ax.text(p/2, i, str(p), ha='center', va='center', color='white', fontweight='bold', fontsize=8)
@@ -188,6 +188,91 @@ def generate_bias_chart(data_points):
 
     return save_plot()
 
+def generate_compression_chart(data_points):
+    setup_matplotlib()
+    sorted_data = sorted(data_points, key=lambda d: d.get('compression', {}).get('pass_count', 0), reverse=False)
+    names = [format_short_name(d['method']) for d in sorted_data]
+    
+    passes = [d.get('compression', {}).get('pass_count', 0) for d in sorted_data]
+    fails = [4 - p for p in passes]
+    
+    fig, ax = plt.subplots(figsize=(9, max(4, len(names)*0.3)))
+    y = range(len(names))
+    
+    ax.barh(y, passes, color=COLOR_PASS, label='Pass')
+    ax.barh(y, fails, left=passes, color=COLOR_FAIL, label='Fail')
+    
+    for i, p in enumerate(passes):
+        if p > 0: ax.text(p/2, i, str(p), ha='center', va='center', color='white', fontweight='bold', fontsize=8)
+        
+    ax.set_yticks(y)
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlim(0, 4)
+    ax.grid(axis='x', linestyle='--', alpha=0.3)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+    ax.set_title("Compression Tests (4 Algorithms)", fontsize=12, fontweight='bold', pad=30)
+    return save_plot()
+
+def generate_testu01_chart(data_points):
+    setup_matplotlib()
+    sorted_data = sorted(data_points, key=lambda d: d.get('testu01', {}).get('pass', 0), reverse=False)
+    names = [format_short_name(d['method']) for d in sorted_data]
+    
+    passes = [d.get('testu01', {}).get('pass', 0) for d in sorted_data]
+    fails = [d.get('testu01', {}).get('fail', 0) for d in sorted_data]
+    totals = [p + f for p, f in zip(passes, fails)]
+    
+    max_total = max(totals) if totals else 15
+    if max_total == 0: max_total = 15
+    
+    fig, ax = plt.subplots(figsize=(9, max(4, len(names)*0.3)))
+    y = range(len(names))
+    
+    ax.barh(y, passes, color=COLOR_PASS, label='Pass')
+    ax.barh(y, fails, left=passes, color=COLOR_FAIL, label='Fail')
+    
+    for i, p in enumerate(passes):
+        if p > 0: ax.text(p/2, i, str(p), ha='center', va='center', color='white', fontweight='bold', fontsize=8)
+        
+    ax.set_yticks(y)
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlim(0, max_total)
+    ax.grid(axis='x', linestyle='--', alpha=0.3)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
+    ax.set_title("TestU01 SmallCrush Pass Rate", fontsize=12, fontweight='bold', pad=30)
+    return save_plot()
+
+def generate_dieharder_chart(data_points):
+    setup_matplotlib()
+    sorted_data = sorted(data_points, key=lambda d: d.get('dieharder', {}).get('pass', 0), reverse=False)
+    names = [format_short_name(d['method']) for d in sorted_data]
+    
+    passes = [d.get('dieharder', {}).get('pass', 0) for d in sorted_data]
+    fails = [d.get('dieharder', {}).get('fail', 0) for d in sorted_data]
+    weaks = [d.get('dieharder', {}).get('weak', 0) for d in sorted_data]
+    totals = [p + f + w for p, f, w in zip(passes, fails, weaks)]
+    
+    max_total = max(totals) if totals else 100
+    if max_total == 0: max_total = 100
+    
+    fig, ax = plt.subplots(figsize=(9, max(4, len(names)*0.3)))
+    y = range(len(names))
+    
+    ax.barh(y, passes, color=COLOR_PASS, label='Pass')
+    ax.barh(y, weaks, left=passes, color=COLOR_WARN, label='Weak')
+    ax.barh(y, fails, left=[p+w for p,w in zip(passes, weaks)], color=COLOR_FAIL, label='Fail')
+    
+    for i, p in enumerate(passes):
+        if p > 0: ax.text(p/2, i, str(p), ha='center', va='center', color='white', fontweight='bold', fontsize=8)
+        
+    ax.set_yticks(y)
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlim(0, max_total)
+    ax.grid(axis='x', linestyle='--', alpha=0.3)
+    ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=3, frameon=False)
+    ax.set_title("Dieharder Pass Rate", fontsize=12, fontweight='bold', pad=30)
+    return save_plot()
+
 # ----------------- PDF Document Generators -----------------
 
 def header_footer(canvas, doc, title_text="RNG Extractors - Analysis Report"):
@@ -263,7 +348,7 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
     elements.append(Paragraph(metadata, body_style))
     elements.append(Spacer(1, 250))
     
-    credit = "NED University of Engineering & Technology — Department of Physics, in collaboration with the Center of Quantum Technologies"
+    credit = "NED University of Engineering & Technology — Department of Physics, in collaboration with the Centre for Quantum Technologies"
     elements.append(Paragraph(credit, ParagraphStyle('Credit', parent=body_style, fontName='Helvetica-Oblique', fontSize=10, textColor=rl_colors.gray)))
     elements.append(PageBreak())
 
@@ -289,7 +374,7 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
         "<b>Throughput (Bit Rate):</b> Represents the speed of the extraction process, measured in bits per second (bps). High throughput is essential for real-time applications.<br/>"
         "<b>Computational Efficiency:</b> The total execution time required by the algorithm in milliseconds. Lower times indicate better performance.<br/>"
         "<b>NIST SP 800-22 Compliance:</b> A rigorous suite of 16 statistical tests. Methods are evaluated based on their pass rate, "
-        "where 'Pass' means the p-value exceeded the 0.01 significance threshold, 'Fail' indicates a detectable pattern, and 'Invalid' "
+        "where 'Pass' means the p-value exceeded the 0.01 significance threshold, 'Fail' indicates a detectable pattern, and 'Insufficient data' "
         "means the input was too short to perform the test."
     )
     elements.append(Paragraph(methodology_text, body_style))
@@ -328,23 +413,44 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
     elements.append(Paragraph("This chart measures residual bias. Bars in green indicate excellent performance (bias < 0.01), amber signifies moderate bias, and red indicates high deviation from uniformity. An ideal extractor completely eliminates systemic bias.", body_style))
     elements.append(PageBreak())
 
+    # 6. Compression
+    elements.append(Paragraph("Compression Viability", h2_style))
+    elements.append(Image(generate_compression_chart(data_points), width=450, height=225))
+    elements.append(Paragraph("Genuinely random data cannot be efficiently compressed. This chart shows the pass rate of 4 compression algorithms (zlib, lzma, bzip2, gzip), where passing means the compression ratio is >= 0.999.", body_style))
+    elements.append(Spacer(1, 15))
+    
+    # 7. TestU01
+    elements.append(Paragraph("TestU01 (SmallCrush)", h2_style))
+    elements.append(Image(generate_testu01_chart(data_points), width=450, height=225))
+    elements.append(Paragraph("TestU01 is a software library offering empirical statistical tests for uniform random number generators. The SmallCrush battery is used here.", body_style))
+    elements.append(PageBreak())
+    
+    # 8. Dieharder
+    elements.append(Paragraph("Dieharder Test Suite", h2_style))
+    elements.append(Image(generate_dieharder_chart(data_points), width=450, height=225))
+    elements.append(Paragraph("Dieharder evaluates random number generators via a collection of rigorous statistical tests. Requires substantial data size to yield meaningful results.", body_style))
+    elements.append(PageBreak())
+
     # --- Performance Rankings Table ---
     elements.append(Paragraph("Performance Rankings", h1_style))
     
-    table_data = [['Rank', 'Method', 'Score', 'NIST Pass', 'Shannon', 'Min Entropy', 'Bias', 'Throughput (bps)']]
+    table_data = [['Rank', 'Method', 'Score', 'NIST', 'Comp.', 'U01', 'Die.', 'Shannon', 'Min Ent.', 'Bias', 'bps']]
     for i, m in enumerate(ranked_methods):
         table_data.append([
             str(i + 1),
             format_short_name(m['method']),
             f"{m['score']:.1f}",
-            f"{m['nistPass']}/16",
+            f"{m['nistPass']}/15",
+            f"{m.get('compressionPass', 0)}/4",
+            f"{m.get('testu01Pass', 0)}/15",
+            f"{m.get('dieharderPass', 0)}/100",
             f"{m['shannon']:.4f}",
             f"{m['minEntropy']:.4f}",
             f"{m['bias']:.4f}",
             f"{int(m['bitRate']):,}"
         ])
 
-    t = Table(table_data, colWidths=[35, 95, 40, 60, 55, 70, 50, 95])
+    t = Table(table_data, colWidths=[25, 90, 30, 35, 35, 35, 35, 45, 45, 40, 60])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), rl_colors.HexColor('#0077B6')),
         ('TEXTCOLOR', (0, 0), (-1, 0), rl_colors.white),
@@ -352,13 +458,13 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
         ('ALIGN', (1, 0), (1, -1), 'LEFT'),
         ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('BACKGROUND', (0, 1), (-1, -1), rl_colors.HexColor('#F8F9FA')),
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [rl_colors.white, rl_colors.HexColor('#F1F5F9')]),
         ('GRID', (0, 0), (-1, -1), 0.5, rl_colors.HexColor('#E2E8F0')),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
     ]))
     elements.append(t)
     elements.append(Spacer(1, 20))

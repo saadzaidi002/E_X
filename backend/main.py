@@ -11,6 +11,7 @@ import sys
 import os
 
 from core_logic import calculate_metrics, run_nist_suite, Extractors
+from new_tests import run_compression_test, run_testu01_suite, run_dieharder_suite
 
 app = FastAPI()
 
@@ -35,7 +36,7 @@ SLOW_METHODS = [
     "15. Trevisan Extractor",
     "17. Quantum-Proof Strong Extractor"
 ]
-MAX_FILE_SIZE = 10 * 1024 * 1024 # 10MB
+MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024 # 5GB
 FAST_TIER_THRESHOLD = 50000 
 
 @app.get("/api/methods")
@@ -75,6 +76,9 @@ async def analyze(
     raw_elapsed = max(0.001, time.time() - raw_start)
     raw_metrics = calculate_metrics(input_bits, total_bits, raw_elapsed)
     raw_nist = run_nist_suite(input_bits)
+    raw_comp = run_compression_test(input_bits)
+    raw_tu01 = run_testu01_suite(input_bits)
+    raw_dh = run_dieharder_suite(input_bits)
     
     chart_data = [{
         "method": "Raw (Baseline)",
@@ -86,7 +90,11 @@ async def analyze(
         "passCount": raw_nist["pass"],
         "failCount": raw_nist["fail"],
         "invalidCount": raw_nist["invalid"],
-        "details": raw_nist.get("details", [])
+        "totalCount": raw_nist.get("total", 16),
+        "details": raw_nist.get("details", []),
+        "compression": raw_comp,
+        "testu01": raw_tu01,
+        "dieharder": raw_dh
     }]
     
     for name in selected_method_names:
@@ -99,6 +107,9 @@ async def analyze(
                 
                 metrics = calculate_metrics(extracted, total_bits, exec_time)
                 nist = run_nist_suite(extracted)
+                comp = run_compression_test(extracted)
+                tu01 = run_testu01_suite(extracted)
+                dh = run_dieharder_suite(extracted)
                 
                 chart_data.append({
                     "method": name,
@@ -110,7 +121,11 @@ async def analyze(
                     "passCount": nist["pass"],
                     "failCount": nist["fail"],
                     "invalidCount": nist["invalid"],
-                    "details": nist.get("details", [])
+                    "totalCount": nist.get("total", 16),
+                    "details": nist.get("details", []),
+                    "compression": comp,
+                    "testu01": tu01,
+                    "dieharder": dh
                 })
             except Exception as e:
                 print(f"Error in {name}: {e}")
@@ -118,7 +133,27 @@ async def analyze(
     ranked_methods = []
     for d in chart_data:
         if d["method"] != "Raw (Baseline)":
-            score = (d["passCount"] * 5) + (d["minEntropy"] * 20) - (d["bias"] * 10)
+            nist_rate = d["passCount"] / max(1, d.get("totalCount", 16))
+            nist_score = nist_rate * 35
+            
+            ent_score = min(1.0, d["minEntropy"]) * 20
+            
+            bias_score = max(0, (0.5 - d["bias"]) / 0.5) * 10
+            
+            comp = d.get("compression", {})
+            comp_rate = comp.get("pass_count", 0) / 4.0
+            comp_score = comp_rate * 10
+            
+            tu01 = d.get("testu01", {})
+            tu01_rate = tu01.get("pass_rate", 0.0)
+            tu01_score = tu01_rate * 15
+            
+            dh = d.get("dieharder", {})
+            dh_rate = dh.get("pass_rate", 0.0)
+            dh_score = dh_rate * 10
+            
+            score = nist_score + ent_score + bias_score + comp_score + tu01_score + dh_score
+            
             ranked_methods.append({
                 "method": d["method"],
                 "score": round(score, 2),
@@ -126,7 +161,10 @@ async def analyze(
                 "shannon": d["shannonEntropy"],
                 "minEntropy": d["minEntropy"],
                 "bias": d["bias"],
-                "bitRate": d["bitRate"]
+                "bitRate": d["bitRate"],
+                "compressionPass": comp.get("pass_count", 0) if not comp.get("invalid") else 0,
+                "testu01Pass": tu01.get("pass", 0) if not tu01.get("error") else 0,
+                "dieharderPass": dh.get("pass", 0) if not (dh.get("error") or dh.get("insufficient")) else 0
             })
             
     ranked_methods.sort(key=lambda x: x["score"], reverse=True)
@@ -170,8 +208,6 @@ async def download_bits(
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
         zip_file.writestr("Raw_Baseline.txt", "".join(map(str, input_bits.tolist())))
         for name in selected_method_names:
-            if name in SLOW_METHODS and total_bits > FAST_TIER_THRESHOLD:
-                continue
             func = METHODS_DICT.get(name)
             if func:
                 try:
@@ -205,6 +241,9 @@ async def download_pdf(
     raw_elapsed = max(0.001, time.time() - raw_start)
     raw_metrics = calculate_metrics(input_bits, total_bits, raw_elapsed)
     raw_nist = run_nist_suite(input_bits)
+    raw_comp = run_compression_test(input_bits)
+    raw_tu01 = run_testu01_suite(input_bits)
+    raw_dh = run_dieharder_suite(input_bits)
     
     data_points = [{
         "method": "Raw (Baseline)",
@@ -216,11 +255,13 @@ async def download_pdf(
         "pass": raw_nist["pass"],
         "fail": raw_nist["fail"],
         "invalid": raw_nist["invalid"],
-        "total": raw_nist["total"]
+        "total": raw_nist.get("total", 16),
+        "compression": raw_comp,
+        "testu01": raw_tu01,
+        "dieharder": raw_dh
     }]
     
     for name in selected_method_names:
-        if name in SLOW_METHODS and total_bits > FAST_TIER_THRESHOLD: continue
         func = METHODS_DICT.get(name)
         if func:
             try:
@@ -229,17 +270,41 @@ async def download_pdf(
                 exec_time = time.time() - start
                 m = calculate_metrics(extracted, total_bits, exec_time)
                 n = run_nist_suite(extracted)
+                c = run_compression_test(extracted)
+                t = run_testu01_suite(extracted)
+                dh = run_dieharder_suite(extracted)
                 data_points.append({
                     "method": name, "shannon": m["shannon"], "minEntropy": m["min_entropy"],
                     "bitRate": m["bit_rate"], "bias": m["bias"], "executionTime": m["time_sec"] * 1000,
-                    "pass": n["pass"], "fail": n["fail"], "invalid": n["invalid"], "total": n["total"]
+                    "pass": n["pass"], "fail": n["fail"], "invalid": n["invalid"], "total": n.get("total", 16),
+                    "compression": c, "testu01": t, "dieharder": dh
                 })
             except: pass
 
     ranked_methods = []
     for d in data_points:
         if d["method"] != "Raw (Baseline)":
-            score = (d["pass"] * 5) + (d["minEntropy"] * 20) - (d["bias"] * 10)
+            nist_rate = d["pass"] / max(1, d.get("total", 16))
+            nist_score = nist_rate * 35
+            
+            ent_score = min(1.0, d["minEntropy"]) * 20
+            
+            bias_score = max(0, (0.5 - d["bias"]) / 0.5) * 10
+            
+            comp = d.get("compression", {})
+            comp_rate = comp.get("pass_count", 0) / 4.0
+            comp_score = comp_rate * 10
+            
+            tu01 = d.get("testu01", {})
+            tu01_rate = tu01.get("pass_rate", 0.0)
+            tu01_score = tu01_rate * 15
+            
+            dh = d.get("dieharder", {})
+            dh_rate = dh.get("pass_rate", 0.0)
+            dh_score = dh_rate * 10
+            
+            score = nist_score + ent_score + bias_score + comp_score + tu01_score + dh_score
+            
             ranked_methods.append({
                 "method": d["method"],
                 "score": round(score, 2),
