@@ -152,7 +152,7 @@ export default function AnalyzePage() {
     if (!result || !file) return;
     setDownloadingPdf(true);
     try {
-      await downloadPdfReport(file, Array.from(selectedMethods));
+      await downloadPdfReport(result);
       showToast('PDF Report generated and downloaded.');
     } finally {
       setDownloadingPdf(false);

@@ -55,8 +55,8 @@ COLOR_EXCELLENT = '#27AE60'
 
 def generate_entropy_chart(data_points):
     setup_matplotlib()
-    # Sort by Shannon Entropy descending
-    sorted_data = sorted(data_points, key=lambda d: d['shannon'], reverse=True)
+    # Remove sorting to match web exactly
+    sorted_data = data_points
     names = [format_short_name(d['method']) for d in sorted_data]
     shannons = [d['shannon'] for d in sorted_data]
     mins = [d['minEntropy'] for d in sorted_data]

@@ -31,6 +31,7 @@ export interface AnalysisResult {
   id: string;
   bestMethod: string;
   bestMethodExplanation: string;
+  totalBits: number;
   chartData: ChartData[];
   rankedMethods: {
     method: string;
@@ -130,14 +131,17 @@ export async function downloadBitsZip(file: File, methods: string[]): Promise<vo
   }
 }
 
-export async function downloadPdfReport(file: File, methods: string[]): Promise<void> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('methods', JSON.stringify(methods));
-  
+export async function downloadPdfReport(analysisData: AnalysisResult): Promise<void> {
   const res = await fetch(`${API_BASE}/api/download/pdf`, {
     method: 'POST',
-    body: formData,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      chartData: analysisData.chartData,
+      rankedMethods: analysisData.rankedMethods,
+      totalBits: analysisData.totalBits || 0,
+    }),
   });
   if (!res.ok) throw new Error('Failed to download');
   const blob = await res.blob();

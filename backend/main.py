@@ -1,6 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Body
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Dict, Any
 import time
 import math
 import numpy as np
@@ -188,6 +190,7 @@ async def analyze(
         "id": "analysis-" + str(int(time.time())),
         "bestMethod": best_method,
         "bestMethodExplanation": best_explanation,
+        "totalBits": total_bits,
         "chartData": chart_data,
         "rankedMethods": ranked_methods
     }
@@ -226,98 +229,32 @@ async def download_bits(
 
 from pdf_report import generate_pdf_report
 
-@app.post("/api/download/pdf")
-async def download_pdf(
-    file: UploadFile = File(...),
-    methods: str = Form(...) 
-):
-    selected_method_names = json.loads(methods)
-    content = await file.read()
-    input_bits = process_file_content(content)
-    total_bits = len(input_bits)
-    
-    # Quick analysis run
-    raw_start = time.time()
-    raw_elapsed = max(0.001, time.time() - raw_start)
-    raw_metrics = calculate_metrics(input_bits, total_bits, raw_elapsed)
-    raw_nist = run_nist_suite(input_bits)
-    raw_comp = run_compression_test(input_bits)
-    raw_tu01 = run_testu01_suite(input_bits)
-    raw_dh = run_dieharder_suite(input_bits)
-    
-    data_points = [{
-        "method": "Raw (Baseline)",
-        "shannon": raw_metrics["shannon"],
-        "minEntropy": raw_metrics["min_entropy"],
-        "bitRate": raw_metrics["bit_rate"],
-        "bias": raw_metrics["bias"],
-        "executionTime": raw_metrics["time_sec"] * 1000,
-        "pass": raw_nist["pass"],
-        "fail": raw_nist["fail"],
-        "invalid": raw_nist["invalid"],
-        "total": raw_nist.get("total", 16),
-        "compression": raw_comp,
-        "testu01": raw_tu01,
-        "dieharder": raw_dh
-    }]
-    
-    for name in selected_method_names:
-        func = METHODS_DICT.get(name)
-        if func:
-            try:
-                start = time.time()
-                extracted = func(input_bits)
-                exec_time = time.time() - start
-                m = calculate_metrics(extracted, total_bits, exec_time)
-                n = run_nist_suite(extracted)
-                c = run_compression_test(extracted)
-                t = run_testu01_suite(extracted)
-                dh = run_dieharder_suite(extracted)
-                data_points.append({
-                    "method": name, "shannon": m["shannon"], "minEntropy": m["min_entropy"],
-                    "bitRate": m["bit_rate"], "bias": m["bias"], "executionTime": m["time_sec"] * 1000,
-                    "pass": n["pass"], "fail": n["fail"], "invalid": n["invalid"], "total": n.get("total", 16),
-                    "compression": c, "testu01": t, "dieharder": dh
-                })
-            except: pass
+class PDFRequest(BaseModel):
+    chartData: List[Dict[str, Any]]
+    rankedMethods: List[Dict[str, Any]]
+    totalBits: int
 
-    ranked_methods = []
-    for d in data_points:
-        if d["method"] != "Raw (Baseline)":
-            nist_rate = d["pass"] / max(1, d.get("total", 16))
-            nist_score = nist_rate * 35
-            
-            ent_score = min(1.0, d["minEntropy"]) * 20
-            
-            bias_score = max(0, (0.5 - d["bias"]) / 0.5) * 10
-            
-            comp = d.get("compression", {})
-            comp_rate = comp.get("pass_count", 0) / 4.0
-            comp_score = comp_rate * 10
-            
-            tu01 = d.get("testu01", {})
-            tu01_rate = tu01.get("pass_rate", 0.0)
-            tu01_score = tu01_rate * 15
-            
-            dh = d.get("dieharder", {})
-            dh_rate = dh.get("pass_rate", 0.0)
-            dh_score = dh_rate * 10
-            
-            score = nist_score + ent_score + bias_score + comp_score + tu01_score + dh_score
-            
-            ranked_methods.append({
-                "method": d["method"],
-                "score": round(score, 2),
-                "nistPass": d["pass"],
-                "shannon": d["shannon"],
-                "minEntropy": d["minEntropy"],
-                "bias": d["bias"],
-                "bitRate": d["bitRate"]
-            })
-            
-    ranked_methods.sort(key=lambda x: x["score"], reverse=True)
-            
-    pdf_buffer = generate_pdf_report(data_points, total_bits, ranked_methods)
+@app.post("/api/download/pdf")
+async def download_pdf(request: PDFRequest):
+    data_points = []
+    for d in request.chartData:
+        data_points.append({
+            "method": d["method"],
+            "shannon": d.get("shannonEntropy", 0),
+            "minEntropy": d.get("minEntropy", 0),
+            "bitRate": d.get("bitRate", 0),
+            "bias": d.get("bias", 0),
+            "executionTime": d.get("executionTime", 0),
+            "pass": d.get("passCount", 0),
+            "fail": d.get("failCount", 0),
+            "invalid": d.get("invalidCount", 0),
+            "total": d.get("totalCount", 16),
+            "compression": d.get("compression", {}),
+            "testu01": d.get("testu01", {}),
+            "dieharder": d.get("dieharder", {})
+        })
+    
+    pdf_buffer = generate_pdf_report(data_points, request.totalBits, request.rankedMethods)
     
     return StreamingResponse(
         pdf_buffer,
