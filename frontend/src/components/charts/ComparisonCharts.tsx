@@ -105,16 +105,23 @@ function ChartWrapper({
                         <p className="font-bold text-sm text-quantum-blue mb-2">{d.method}</p>
                         <div className="space-y-1.5">
                           {d.details && d.details.length > 0 ? d.details.map((test, j) => (
-                            <div key={j} className="flex justify-between text-xs items-center">
-                              <span className="text-quantum-navy/80 truncate pr-2">{test.name}</span>
-                              <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
-                                test.status === 'pass' ? 'bg-[#27ae60]/10 text-[#27ae60]' : 
-                                test.status === 'fail' ? 'bg-[#c0392b]/10 text-[#c0392b]' : 
-                                'bg-[#95a5a6]/10 text-[#95a5a6]'
-                              }`}>
-                                {test.status === 'invalid' ? 'Insufficient data' : test.status}
-                              </span>
-                            </div>
+                              <div key={j} className="flex flex-col py-1 border-b border-quantum-light/30 last:border-0">
+                                <div className="flex justify-between text-xs items-center">
+                                  <span className="text-quantum-navy/80 truncate pr-2 font-medium">{test.name}</span>
+                                  <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] uppercase ${
+                                    test.status === 'pass' ? 'bg-[#27ae60]/10 text-[#27ae60]' : 
+                                    test.status === 'fail' ? 'bg-[#c0392b]/10 text-[#c0392b]' : 
+                                    'bg-[#95a5a6]/10 text-[#95a5a6]'
+                                  }`}>
+                                    {test.status === 'invalid' ? 'Insufficient data' : test.status}
+                                  </span>
+                                </div>
+                                {typeof test.pValue === 'number' && !Number.isNaN(test.pValue) && test.status !== 'invalid' && (
+                                  <div className="text-[10px] text-quantum-navy/60 font-mono mt-0.5 pl-1">
+                                    p-value: {test.pValue < 0.0001 ? '< 0.0001' : test.pValue.toFixed(4)}
+                                  </div>
+                                )}
+                              </div>
                           )) : (
                             <p className="text-xs text-quantum-navy/50 italic">No details available</p>
                           )}
