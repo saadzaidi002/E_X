@@ -50,7 +50,7 @@ export default function AboutPage() {
               <h3 className="font-bold text-quantum-navy text-lg">Dr. Tahir Malik</h3>
               <p className="text-quantum-blue font-semibold text-sm mt-1">Co-Supervisor &amp; Co-PI, CQT</p>
               <div className="mt-4 flex items-center gap-2 text-sm text-quantum-navy/70 font-semibold">
-                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> Dept. Of Telecommunications Engineering
+                <GraduationCap className="w-4 h-4 text-quantum-cyan" /> Department of Telecommunications Engineering
               </div>
             </div>
 
