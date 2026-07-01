@@ -89,7 +89,7 @@ export default function GuidePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-orange-300/50 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-quantum-navy text-lg">Tier 2: Fast Path Only</h3>
-                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">{formatSize(limits.fastTierThreshold, true)} &lt; Input &le; {formatSize(limits.maxFileSize, false)}</p>
+                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">{formatSize(limits.fastTierThreshold, true)} &lt; Input &le; 5 GB</p>
                   </div>
                   <div className="sm:text-right flex sm:block items-center justify-between">
                     <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-xs font-bold rounded-full sm:mb-1.5">Restricted</span>
@@ -100,7 +100,7 @@ export default function GuidePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-purple-800 text-lg">Tier 3: Extended Processing</h3>
-                    <p className="text-sm text-purple-700 font-medium mt-1">Supports massive-scale datasets up to {formatSize(limits.maxFileSize, false)}</p>
+                    <p className="text-sm text-purple-700 font-medium mt-1">Supports massive-scale datasets up to 5 GB</p>
                     <p className="text-xs text-purple-600/80 font-medium mt-1">Processing will take significantly longer. User assumes responsibility for extended wait times.</p>
                   </div>
                   <div className="sm:text-right flex sm:block items-center justify-between">
