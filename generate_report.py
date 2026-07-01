@@ -138,7 +138,7 @@ def create_report():
     Story.append(PageBreak())
     add_heading("5. About Page", heading2_style)
     add_paragraph("The About page provides essential academic research background, establishing the credibility and origins of the project. The Project Abstract outlines the core objective: evaluating and enhancing RNGs using software algorithms to secure modern cryptography against predictive attacks.")
-    add_paragraph("It proudly highlights the affiliation with the NED University of Engineering and Technology (Department of Physics & Centre for Quantum Technologies). Finally, it acknowledges the dedicated Research Team driving the initiative, including supervisors Dr. Roohi Zafar and Dr. Tahir Malik, co-supervisor and director Dr. Kamran, and core developer Syed Muhammad Saad Hussain Zaidi.")
+    add_paragraph("It proudly highlights the affiliation with the NED University of Engineering and Technology (Department of Physics & Centre for Quantum Technologies). Finally, it acknowledges the dedicated Research Team driving the initiative, including supervisor Dr. Roohi Zafar, co-supervisors and co-PIs, CQT Dr. Tahir Malik and Dr. Kamran, and core developer Syed Muhammad Saad Hussain Zaidi.")
     add_image(r"g:\RNG Extractors\Report\About.png", 0.9)
 
     doc.build(Story)
