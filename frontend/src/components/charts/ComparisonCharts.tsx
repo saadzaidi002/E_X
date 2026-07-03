@@ -71,10 +71,12 @@ function ChartWrapper({
       <TerminalCard title={title} className="h-96 relative group">
         <div 
           onClick={() => handleExpand(true)}
-          className="w-full h-full pb-4 cursor-pointer [&_.recharts-wrapper]:!outline-none [&_.recharts-surface]:!outline-none [&_*]:focus:!outline-none"
+          className="w-full h-full pb-4 cursor-pointer overflow-x-auto no-scrollbar [&_.recharts-wrapper]:!outline-none [&_.recharts-surface]:!outline-none [&_*]:focus:!outline-none"
           title="Click to expand chart"
         >
-          {children}
+          <div className="min-w-[600px] h-full">
+            {children}
+          </div>
         </div>
       </TerminalCard>
 
@@ -92,8 +94,10 @@ function ChartWrapper({
             </div>
             
             <div className="flex-1 p-6 min-h-0 flex flex-col lg:flex-row gap-6 overflow-auto">
-              <div className="flex-1 min-h-[400px]">
-                {children}
+              <div className="flex-1 min-h-[400px] overflow-x-auto no-scrollbar">
+                <div className="min-w-[600px] h-full">
+                  {children}
+                </div>
               </div>
               
               {isNist && data.length > 0 && (

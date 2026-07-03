@@ -28,8 +28,43 @@ export default function Home() {
         </h1>
         
         <p className="text-quantum-blue leading-relaxed font-sans text-lg sm:text-xl">
-          Process raw bit streams from random number generators through 20 specialized extraction algorithms, evaluated strictly against the NIST SP 800-22 cryptographic test suite.
+          Process raw bit streams from random number generators through 20 specialized extraction algorithms, evaluated strictly against comprehensive cryptographic test suites:
         </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-2">
+          <div className="flex flex-col border-l-2 border-quantum-cyan pl-3">
+            <span className="text-quantum-navy font-extrabold text-sm tracking-wide">NIST SP 800-22</span>
+            <span className="text-quantum-blue text-xs font-semibold mt-0.5">15 Statistical Tests</span>
+          </div>
+          <div className="flex flex-col border-l-2 border-quantum-blue pl-3">
+            <span className="text-quantum-navy font-extrabold text-sm tracking-wide">TestU01 Suite</span>
+            <span className="text-quantum-blue text-xs font-semibold mt-0.5">SmallCrush (15 Tests)</span>
+          </div>
+          <div className="flex flex-col border-l-2 border-quantum-cyan/70 pl-3">
+            <span className="text-quantum-navy font-extrabold text-sm tracking-wide">Dieharder</span>
+            <span className="text-quantum-blue text-xs font-semibold mt-0.5">Advanced Test Battery</span>
+          </div>
+          <div className="flex flex-col border-l-2 border-quantum-blue/70 pl-3">
+            <span className="text-quantum-navy font-extrabold text-sm tracking-wide">Compression Tests</span>
+            <span className="text-quantum-blue text-xs font-semibold mt-0.5">Gzip, LZMA, Bzip2, Deflate</span>
+          </div>
+          <div className="col-span-2 bg-gradient-to-r from-quantum-light/40 to-transparent border border-quantum-blue/20 rounded-lg p-3 flex flex-col mt-1">
+            <span className="text-quantum-navy font-extrabold text-sm tracking-wide mb-1.5">Performance Metrics</span>
+            <span className="text-quantum-blue text-xs font-semibold flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>Shannon Entropy</span>
+              <span className="text-quantum-cyan">•</span>
+              <span>Min Entropy</span>
+              <span className="text-quantum-cyan">•</span>
+              <span>Efficiency</span>
+              <span className="text-quantum-cyan">•</span>
+              <span>Throughput</span>
+              <span className="text-quantum-cyan">•</span>
+              <span>Bit Rate</span>
+              <span className="text-quantum-cyan">•</span>
+              <span>Bias</span>
+            </span>
+          </div>
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <TerminalButton 

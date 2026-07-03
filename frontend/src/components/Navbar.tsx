@@ -16,7 +16,7 @@ export function Navbar() {
   return (
     <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-quantum-light shadow-sm">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 min-w-max md:min-w-0">
+        <div className="flex items-center justify-between h-16 w-full">
           <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
             <img src="/logo.png" alt="RNG Extractors Logo" className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" />
             <span className="font-sans text-lg text-quantum-navy font-bold tracking-tight whitespace-nowrap hidden sm:block">

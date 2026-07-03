@@ -12,9 +12,39 @@ export default function AboutPage() {
 
       <div className="space-y-8">
         <TerminalCard delay={0.2} title="Project Abstract">
-          <p className="text-quantum-navy/80 font-medium leading-relaxed text-base">
-            RNG Extractors is an academic research platform developed to evaluate and enhance the quality of random number generators from any source. By applying 20 distinct software extraction algorithms, the platform standardizes the process of removing bias and improving the min-entropy of raw bitstreams. The extracted outputs are rigorously evaluated against the industry-standard NIST SP 800-22 statistical test suite to verify their cryptographic viability. High-quality, unbiased random numbers are foundational to modern cryptography, ensuring the generation of secure cryptographic keys, robust digital signatures, and resilient encryption protocols that are strictly protected against predictive attacks.
-          </p>
+          <div className="text-quantum-navy/80 font-medium leading-relaxed text-base space-y-4">
+            <p>
+              RNG Extractors is an academic research platform developed to evaluate and enhance the quality of random number generators from any source. By applying 20 distinct software extraction algorithms, the platform standardizes the process of removing bias and improving the min-entropy of raw bitstreams.
+            </p>
+            <p>
+              The extracted outputs are rigorously evaluated against a comprehensive battery of tests to verify their cryptographic viability, including:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-2">
+              <div className="flex flex-col border-l-2 border-quantum-cyan/60 pl-3">
+                <span className="text-quantum-navy font-bold text-sm">NIST SP 800-22</span>
+                <span className="text-xs font-semibold">15 Statistical Tests</span>
+              </div>
+              <div className="flex flex-col border-l-2 border-quantum-blue/60 pl-3">
+                <span className="text-quantum-navy font-bold text-sm">TestU01 Suite</span>
+                <span className="text-xs font-semibold">SmallCrush (15 Tests)</span>
+              </div>
+              <div className="flex flex-col border-l-2 border-quantum-cyan/60 pl-3">
+                <span className="text-quantum-navy font-bold text-sm">Dieharder</span>
+                <span className="text-xs font-semibold">Advanced Test Battery</span>
+              </div>
+              <div className="flex flex-col border-l-2 border-quantum-blue/60 pl-3">
+                <span className="text-quantum-navy font-bold text-sm">Compression Tests</span>
+                <span className="text-xs font-semibold">Gzip, LZMA, Bzip2, Deflate</span>
+              </div>
+              <div className="col-span-1 sm:col-span-2 flex flex-col border-l-2 border-quantum-navy/60 pl-3 mt-1">
+                <span className="text-quantum-navy font-bold text-sm">Performance Metrics</span>
+                <span className="text-xs font-semibold leading-relaxed">Shannon Entropy &bull; Min Entropy &bull; Efficiency &bull; Throughput &bull; Bit Rate &bull; Bias</span>
+              </div>
+            </div>
+            <p>
+              High-quality, unbiased random numbers are foundational to modern cryptography, ensuring the generation of secure cryptographic keys, robust digital signatures, and resilient encryption protocols that are strictly protected against predictive attacks.
+            </p>
+          </div>
         </TerminalCard>
 
         <div className="flex flex-col items-center justify-center p-8 bg-white border border-quantum-light shadow-sm rounded-xl text-center">
