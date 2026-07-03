@@ -17,20 +17,20 @@ export function Navbar() {
     <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-quantum-light shadow-sm">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 w-full">
-          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
-            <img src="/logo.png" alt="RNG Extractors Logo" className="h-8 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" />
+          <Link href="/" className="flex items-center gap-1.5 sm:gap-3 group flex-shrink-0">
+            <img src="/logo.png" alt="RNG Extractors Logo" className="h-6 min-[375px]:h-7 sm:h-9 w-auto object-contain transition-transform group-hover:scale-105" />
             <span className="font-sans text-lg text-quantum-navy font-bold tracking-tight whitespace-nowrap hidden sm:block">
               RNG Extractors
             </span>
           </Link>
-          <div className="flex items-center space-x-1 sm:space-x-2 overflow-x-auto no-scrollbar flex-shrink-0 ml-4">
+          <div className="flex items-center space-x-0.5 min-[375px]:space-x-1 sm:space-x-2 ml-auto py-2">
             {links.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`font-sans text-sm font-semibold px-3 py-2 rounded-md transition-all duration-200 whitespace-nowrap ${
+                  className={`font-sans text-[10px] min-[375px]:text-xs sm:text-sm font-semibold px-1.5 min-[375px]:px-2 sm:px-3 py-1.5 sm:py-2 rounded-md transition-all duration-200 whitespace-nowrap ${
                     isActive
                       ? 'text-quantum-navy bg-quantum-light/30 shadow-sm'
                       : 'text-quantum-blue hover:text-quantum-navy hover:bg-quantum-light/20'

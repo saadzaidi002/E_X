@@ -20,18 +20,18 @@ export default function Home() {
         transition={{ type: "spring", stiffness: 200, damping: 20, delay: 0.1 }}
         className="flex-1 space-y-8 max-w-2xl pt-10 lg:pt-0"
       >
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-sans font-extrabold text-quantum-navy tracking-tight leading-tight">
+        <h1 className="text-4xl sm:text-5xl lg:text-7xl font-sans font-extrabold text-quantum-navy tracking-tight leading-tight">
           Randomness <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-quantum-blue to-quantum-cyan">
             Extraction & Analysis
           </span>
         </h1>
         
-        <p className="text-quantum-blue leading-relaxed font-sans text-lg sm:text-xl">
+        <p className="text-quantum-blue leading-relaxed font-sans text-base sm:text-lg lg:text-xl">
           Process raw bit streams from random number generators through 20 specialized extraction algorithms, evaluated strictly against comprehensive cryptographic test suites:
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 sm:gap-x-6 sm:gap-y-4 pt-2">
           <div className="flex flex-col border-l-2 border-quantum-cyan pl-3">
             <span className="text-quantum-navy font-extrabold text-sm tracking-wide">NIST SP 800-22</span>
             <span className="text-quantum-blue text-xs font-semibold mt-0.5">15 Statistical Tests</span>
@@ -137,7 +137,7 @@ export default function Home() {
       </div>
       
       {/* Mobile view for cards */}
-      <div className="md:hidden grid grid-cols-1 gap-6 w-full mt-8">
+      <div className="md:hidden grid grid-cols-1 gap-4 w-full mt-8">
         <TerminalCard delay={0.2} className="flex flex-col p-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-quantum-light/30 rounded-lg text-quantum-navy">
@@ -158,6 +158,17 @@ export default function Home() {
               <div className="text-2xl font-sans font-extrabold text-quantum-navy">4</div>
               <div className="text-sm text-quantum-blue font-bold">Validation Suites</div>
               <div className="text-[11px] text-quantum-navy/70 font-semibold mt-0.5">NIST, TestU01, Dieharder, Compression</div>
+            </div>
+          </div>
+        </TerminalCard>
+        <TerminalCard delay={0.4} className="flex flex-col p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-quantum-light/30 rounded-lg text-quantum-navy">
+              <BarChart2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-2xl font-sans font-extrabold text-quantum-navy">Live</div>
+              <div className="text-sm text-quantum-blue font-bold">Comparative Reports</div>
             </div>
           </div>
         </TerminalCard>

@@ -25,7 +25,7 @@ export default function GuidePage() {
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto animate-in fade-in duration-500 pb-12">
+    <div className="max-w-4xl mx-auto px-4 sm:px-0 animate-in fade-in duration-500 pb-12">
       <div className="mb-8 border-b border-quantum-light pb-6">
         <h1 className="text-3xl font-sans font-bold text-quantum-navy">Documentation</h1>
         <p className="text-quantum-blue font-semibold mt-2">System requirements, input specifications, and operating limits.</p>
@@ -75,7 +75,7 @@ export default function GuidePage() {
               </div>
               
               <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-quantum-cyan/50 transition-all duration-300">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-quantum-cyan/50 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-quantum-navy text-lg">Tier 1: Comprehensive Analysis</h3>
                     <p className="text-sm text-quantum-navy/70 font-medium mt-1">Input size &le; {formatSize(limits.fastTierThreshold, true)}</p>
@@ -86,7 +86,7 @@ export default function GuidePage() {
                   </div>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-orange-300/50 transition-all duration-300">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-orange-300/50 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-quantum-navy text-lg">Tier 2: Fast Path Only</h3>
                     <p className="text-sm text-quantum-navy/70 font-medium mt-1">{formatSize(limits.fastTierThreshold, true)} &lt; Input &le; 5 GB</p>
@@ -97,7 +97,7 @@ export default function GuidePage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-purple-800 text-lg">Tier 3: Extended Processing</h3>
                     <p className="text-sm text-purple-700 font-medium mt-1">Supports massive-scale datasets up to 5 GB</p>

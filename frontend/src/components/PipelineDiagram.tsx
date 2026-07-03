@@ -62,7 +62,7 @@ export function PipelineDiagram() {
   ];
 
   return (
-    <div className="w-full max-w-6xl mx-auto py-16 px-4">
+    <div className="w-full max-w-6xl mx-auto py-12 md:py-16 px-4 sm:px-6">
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-extrabold text-quantum-navy mb-4">Complete Architecture Pipeline</h2>
         <p className="text-quantum-blue font-medium max-w-2xl mx-auto">
@@ -99,7 +99,7 @@ export function PipelineDiagram() {
         <motion.div variants={itemVariants} className="w-full hidden md:block max-w-5xl relative z-0 h-10 -mt-10 mb-4 border-t-2 border-l-2 border-r-2 border-quantum-light rounded-t-xl opacity-50" />
 
         {/* Step 3: The 5 Categories */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-3 w-full max-w-6xl relative z-10">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-3 w-full max-w-6xl relative z-10">
           {categories.map((cat, i) => (
             <motion.div key={i} variants={itemVariants} className="flex flex-col items-center">
               <div className={`w-full ${cat.color} rounded-xl p-4 flex flex-col items-center justify-center text-center shadow-lg transition-transform hover:-translate-y-1`}>
@@ -137,7 +137,7 @@ export function PipelineDiagram() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 w-full justify-center items-stretch">
             
             {/* NIST */}
-            <div className="bg-white border-2 border-quantum-navy/20 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-navy/50 transition-colors">
+            <div className="bg-white border-2 border-quantum-navy/20 px-4 sm:px-6 py-5 rounded-xl shadow-lg flex items-center gap-3 sm:gap-4 group hover:border-quantum-navy/50 transition-colors">
               <div className="p-3 bg-quantum-light/30 rounded-lg text-quantum-navy flex-shrink-0">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
@@ -148,7 +148,7 @@ export function PipelineDiagram() {
             </div>
 
             {/* TestU01 */}
-            <div className="bg-white border-2 border-indigo-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-indigo-400 transition-colors">
+            <div className="bg-white border-2 border-indigo-200 px-4 sm:px-6 py-5 rounded-xl shadow-lg flex items-center gap-3 sm:gap-4 group hover:border-indigo-400 transition-colors">
               <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600 flex-shrink-0">
                 <Activity className="w-7 h-7" />
               </div>
@@ -159,7 +159,7 @@ export function PipelineDiagram() {
             </div>
 
             {/* Dieharder */}
-            <div className="bg-white border-2 border-orange-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-orange-400 transition-colors">
+            <div className="bg-white border-2 border-orange-200 px-4 sm:px-6 py-5 rounded-xl shadow-lg flex items-center gap-3 sm:gap-4 group hover:border-orange-400 transition-colors">
               <div className="p-3 bg-orange-50 rounded-lg text-orange-600 flex-shrink-0">
                 <Shield className="w-7 h-7" />
               </div>
@@ -170,7 +170,7 @@ export function PipelineDiagram() {
             </div>
 
             {/* Compression */}
-            <div className="bg-white border-2 border-emerald-200 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-emerald-400 transition-colors">
+            <div className="bg-white border-2 border-emerald-200 px-4 sm:px-6 py-5 rounded-xl shadow-lg flex items-center gap-3 sm:gap-4 group hover:border-emerald-400 transition-colors">
               <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600 flex-shrink-0">
                 <Network className="w-7 h-7" />
               </div>
@@ -181,7 +181,7 @@ export function PipelineDiagram() {
             </div>
 
             {/* Performance Metrics */}
-            <div className="bg-white border-2 border-quantum-cyan/30 px-6 py-5 rounded-xl shadow-lg flex items-center gap-4 group hover:border-quantum-cyan/70 transition-colors md:col-span-2 lg:col-span-2">
+            <div className="bg-white border-2 border-quantum-cyan/30 px-4 sm:px-6 py-5 rounded-xl shadow-lg flex items-center gap-3 sm:gap-4 group hover:border-quantum-cyan/70 transition-colors md:col-span-2 lg:col-span-2">
               <div className="p-3 bg-cyan-50 rounded-lg text-quantum-cyan flex-shrink-0">
                 <BarChart2 className="w-7 h-7" />
               </div>

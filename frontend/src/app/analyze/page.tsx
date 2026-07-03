@@ -301,7 +301,7 @@ export default function AnalyzePage() {
 
               <TerminalCard title="Performance Rankings">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse font-sans font-medium">
+                  <table className="w-full text-left text-sm border-collapse font-sans font-medium whitespace-nowrap">
                     <thead>
                       <tr className="text-quantum-navy border-b border-quantum-light">
                         <th className="py-3 px-4 font-bold">Rank</th>
