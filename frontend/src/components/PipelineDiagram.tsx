@@ -29,28 +29,28 @@ export function PipelineDiagram() {
       icon: <Fingerprint className="w-5 h-5 mb-2" />,
       color: "bg-emerald-600 text-white shadow-emerald-500/20",
       itemColor: "bg-emerald-100/80 text-emerald-800 border-emerald-200",
-      items: ["Von Neumann", "Peres", "Elias"]
+      items: ["Von Neumann", "Peres", "Elias", "Arithmetic Coding"]
     },
     {
       title: "Hash-Based",
       icon: <Shield className="w-5 h-5 mb-2" />,
       color: "bg-orange-500 text-white shadow-orange-500/20",
       itemColor: "bg-orange-100/80 text-orange-800 border-orange-200",
-      items: ["SHA-256", "SHA-3", "BLAKE2"]
+      items: ["SHA-256", "SHA-3", "BLAKE2", "LHL"]
     },
     {
       title: "Matrix/Algebra",
       icon: <Network className="w-5 h-5 mb-2" />,
       color: "bg-fuchsia-600 text-white shadow-fuchsia-500/20",
       itemColor: "bg-fuchsia-100/80 text-fuchsia-800 border-fuchsia-200",
-      items: ["Toeplitz", "Hadamard", "Polynomial"]
+      items: ["Toeplitz", "Hadamard", "Polynomial", "Modular Arithmetic"]
     },
     {
       title: "Mixing Methods",
       icon: <Activity className="w-5 h-5 mb-2" />,
       color: "bg-cyan-500 text-white shadow-cyan-500/20",
       itemColor: "bg-cyan-100/80 text-cyan-800 border-cyan-200",
-      items: ["XOR", "Bit Shifting", "LFSR"]
+      items: ["XOR", "Bit Shuffling", "LFSR", "Juels-Wattenberg"]
     },
     {
       title: "Advanced Extractors",
