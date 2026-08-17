@@ -8,17 +8,7 @@ import time
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 
-from ApproximateEntropy import ApproximateEntropy as aet
-from Complexity import ComplexityTest as ct
-from CumulativeSum import CumulativeSums as cst
-from FrequencyTest import FrequencyTest as ft
-from Matrix import Matrix as mt
-from RandomExcursions import RandomExcursions as ret
-from RunTest import RunTest as rt
-from Serial import Serial as serial
-from Spectral import SpectralTest as st
-from TemplateMatching import TemplateMatching as tm
-from Universal import Universal as ut
+from backend.nist_fast import NISTFast
 from Extractors import Extractors
 
 # Exact same functions from ExtractorSuite..py adapted slightly for standalone use
@@ -42,8 +32,7 @@ def calculate_metrics(bits, original_length, exec_time=0.0):
 
 def run_nist_suite(bits):
     bits = np.asarray(bits, dtype=np.int8)
-    binary_data = ''.join(map(str, bits.tolist()))
-    length = len(binary_data)
+    length = len(bits)
 
     p_values = []
     
@@ -59,17 +48,17 @@ def run_nist_suite(bits):
     def single(result):
         if result is None:
             return float('nan')
-        return float(result[0])
+        return float(result)
 
     def serial_combined(result):
-        if result is None:
+        if result is None or (isinstance(result, tuple) and len(result) > 0 and math.isnan(result[0])):
             return float('nan')
-        return float(min(result[0][0], result[1][0]))
+        return float(min(result[0], result[1]))
 
     def excursions_combined(result):
         if result is None:
             return float('nan')
-        valid_p = [float(item[-2]) for item in result if not math.isnan(float(item[-2]))]
+        valid_p = [float(item) for item in result if not math.isnan(float(item))]
         if not valid_p:
             return float('nan')
         return min(valid_p)
@@ -94,25 +83,25 @@ def run_nist_suite(bits):
         ]:
             record_test(name, float('nan'))
     else:
-        record_test("Frequency (Monobit)", single(safe_run(ft.monobit_test, binary_data)))
-        record_test("Block Frequency", single(safe_run(ft.block_frequency, binary_data)))
-        record_test("Runs", single(safe_run(rt.run_test, binary_data)))
-        record_test("Longest Run of Ones", single(safe_run(rt.longest_one_block_test, binary_data)))
-        record_test("Binary Matrix Rank", single(safe_run(mt.binary_matrix_rank_text, binary_data)))
-        record_test("Discrete Fourier Transform", single(safe_run(st.spectral_test, binary_data)))
-        record_test("Non-overlapping Template", single(safe_run(tm.non_overlapping_test, binary_data)))
-        record_test("Overlapping Template", single(safe_run(tm.overlapping_patterns, binary_data)))
+        record_test("Frequency (Monobit)", single(safe_run(NISTFast.monobit_test, bits)))
+        record_test("Block Frequency", single(safe_run(NISTFast.block_frequency, bits)))
+        record_test("Runs", single(safe_run(NISTFast.run_test, bits)))
+        record_test("Longest Run of Ones", single(safe_run(NISTFast.longest_one_block_test, bits)))
+        record_test("Binary Matrix Rank", single(safe_run(NISTFast.binary_matrix_rank_text, bits)))
+        record_test("Discrete Fourier Transform", single(safe_run(NISTFast.spectral_test, bits)))
+        record_test("Non-overlapping Template", single(safe_run(NISTFast.non_overlapping_test, bits)))
+        record_test("Overlapping Template", single(safe_run(NISTFast.overlapping_patterns, bits)))
         if length >= 387840:
-            record_test("Maurer's Universal", single(safe_run(ut.statistical_test, binary_data)))
+            record_test("Maurer's Universal", single(safe_run(NISTFast.statistical_test, bits)))
         else:
             record_test("Maurer's Universal", -1.0)
-        record_test("Linear Complexity", single(safe_run(ct.linear_complexity_test, binary_data)))
-        record_test("Serial", serial_combined(safe_run(serial.serial_test, binary_data)))
-        record_test("Approximate Entropy", single(safe_run(aet.approximate_entropy_test, binary_data)))
-        record_test("Cumulative Sums (Fwd)", single(safe_run(cst.cumulative_sums_test, binary_data, mode=0)))
-        record_test("Cumulative Sums (Bwd)", single(safe_run(cst.cumulative_sums_test, binary_data, mode=1)))
-        record_test("Random Excursions", excursions_combined(safe_run(ret.random_excursions_test, binary_data)))
-        record_test("Random Excursions Variant", excursions_combined(safe_run(ret.variant_test, binary_data)))
+        record_test("Linear Complexity", single(safe_run(NISTFast.linear_complexity_test, bits)))
+        record_test("Serial", serial_combined(safe_run(NISTFast.serial_test, bits)))
+        record_test("Approximate Entropy", single(safe_run(NISTFast.approximate_entropy_test, bits)))
+        record_test("Cumulative Sums (Fwd)", single(safe_run(NISTFast.cumulative_sums_test, bits, mode=0)))
+        record_test("Cumulative Sums (Bwd)", single(safe_run(NISTFast.cumulative_sums_test, bits, mode=1)))
+        record_test("Random Excursions", excursions_combined(safe_run(NISTFast.random_excursions_test, bits)))
+        record_test("Random Excursions Variant", excursions_combined(safe_run(NISTFast.random_excursions_variant_test, bits)))
 
     passes = sum(1 for p in p_values if (not math.isnan(p)) and p != -1.0 and p >= 0.01)
     fails = sum(1 for p in p_values if (not math.isnan(p)) and p != -1.0 and 0 <= p < 0.01)

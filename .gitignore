@@ -1,3 +1,9 @@
 .idea/
 __pycache__/
 Report/
+
+Actual extraction method code/
+*.pdf
+*.png
+*.jpg
+*.jpeg

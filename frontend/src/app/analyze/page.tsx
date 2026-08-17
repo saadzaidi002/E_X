@@ -8,6 +8,22 @@ import { EntropyChart, BitRateChart, BiasChart, NistComplianceChart, EfficiencyC
 import { Upload, Play, Download, FileText, Check, AlertTriangle, Loader2, Binary, CheckCircle2 } from 'lucide-react';
 import { useAnalysis } from '@/lib/AnalysisContext';
 
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+const TEST_SUITES_CONFIG = [
+  { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', isSlow: false, minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
+  { id: 'testu01', name: 'TestU01 Suite', desc: 'SmallCrush (15 Tests)', isSlow: true, minBytes: 2000000, warning: 'Requires at least 2 MB (Current: {current_size}) for 32-bit word sample completeness.' },
+  { id: 'dieharder', name: 'Dieharder', desc: 'Advanced Test Battery', isSlow: true, minBytes: 13107200, warning: 'Requires at least 13 MB (Current: {current_size}) to run Marsaglia tests without data recycling/rewind.' },
+  { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', isSlow: false, minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
+  { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', isSlow: false, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
+];
+
 export default function AnalyzePage() {
   const {
     file,
@@ -18,6 +34,8 @@ export default function AnalyzePage() {
     setMethods,
     selectedMethods,
     setSelectedMethods,
+    selectedTests,
+    setSelectedTests,
     status,
     setStatus,
     errorMsg,
@@ -35,22 +53,53 @@ export default function AnalyzePage() {
   const [toast, setToast] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const [isFetching, setIsFetching] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
+
+  useEffect(() => {
+    if (!file && !result) {
+      setSelectedTests(new Set([]));
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
+      if (hasFetched || isFetching) return;
+      setIsFetching(true);
       try {
         const [l, m] = await Promise.all([getLimits(), getMethods()]);
         setLimits(l);
         setMethods(m);
       } catch (err) {
-        console.error(err);
+        console.error('Failed to init API:', err);
         setErrorMsg('Failed to initialize API. Backend may be unreachable.');
+      } finally {
+        setIsFetching(false);
+        setHasFetched(true);
       }
     }
-    // Only initialize API endpoints if they haven't been loaded yet to preserve session errors / status
-    if (methods.length === 0 || !limits) {
+    
+    if (methods.length === 0 && !hasFetched) {
       init();
     }
-  }, [methods.length, limits, setLimits, setMethods, setErrorMsg]);
+  }, [methods.length, hasFetched, isFetching, setLimits, setMethods, setErrorMsg]);
+
+  useEffect(() => {
+    if (file) {
+      const fileSize = file.size;
+      setSelectedTests(prev => {
+        const next = new Set(prev);
+        let changed = false;
+        TEST_SUITES_CONFIG.forEach(t => {
+          if (fileSize < t.minBytes && next.has(t.id)) {
+            next.delete(t.id);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [file, setSelectedTests]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -124,11 +173,22 @@ export default function AnalyzePage() {
     ]);
 
     try {
-      setTimeout(() => setAnalysisLogs(prev => [...prev, { time: getTime(), msg: 'Running selected extractor modules...' }]), 800);
-      setTimeout(() => setAnalysisLogs(prev => [...prev, { time: getTime(), msg: 'Executing NIST SP 800-22 statistical battery...' }]), 1600);
-      setTimeout(() => setAnalysisLogs(prev => [...prev, { time: getTime(), msg: 'Compiling comparative analytics report...' }]), 2400);
-
-      const res = await analyzeFile(file, Array.from(selectedMethods));
+      let logIndex = 0;
+      const res = await analyzeFile(
+        file, 
+        Array.from(selectedMethods),
+        Array.from(selectedTests),
+        (logs) => {
+          if (logs && logs.length > logIndex) {
+            const newLogs = logs.slice(logIndex).map(msg => ({
+              time: getTime(),
+              msg
+            }));
+            setAnalysisLogs(prev => [...prev, ...newLogs]);
+            logIndex = logs.length;
+          }
+        }
+      );
       setResult(res);
       setStatus('complete');
     } catch (err: any) {
@@ -152,7 +212,7 @@ export default function AnalyzePage() {
     if (!result || !file) return;
     setDownloadingPdf(true);
     try {
-      await downloadPdfReport(result);
+      await downloadPdfReport(result, selectedTests);
       showToast('PDF Report generated and downloaded.');
     } catch (err: any) {
       console.error(err);
@@ -256,35 +316,49 @@ export default function AnalyzePage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div className="lg:col-span-2">
-              <h2 className="text-2xl font-bold text-quantum-navy mb-4 border-b border-quantum-light pb-2">Overview Metrics</h2>
-            </div>
-            
-            <div className="lg:col-span-2">
-              <EfficiencyChart data={result.chartData} />
-            </div>
-            <EntropyChart data={result.chartData} />
-            <BitRateChart data={result.chartData} />
-            <div className="lg:col-span-2">
-              <BiasChart data={result.chartData} />
-            </div>
+            {selectedTests.has('performance') && (
+              <>
+                <div className="lg:col-span-2">
+                  <h2 className="text-2xl font-bold text-quantum-navy mb-4 border-b border-quantum-light pb-2">Overview Metrics</h2>
+                </div>
+                
+                <div className="lg:col-span-2">
+                  <EfficiencyChart data={result.chartData} />
+                </div>
+                <EntropyChart data={result.chartData} />
+                <BitRateChart data={result.chartData} />
+                <div className="lg:col-span-2">
+                  <BiasChart data={result.chartData} />
+                </div>
+              </>
+            )}
 
-            <div className="lg:col-span-2 mt-6">
-              <h2 className="text-2xl font-bold text-quantum-navy mb-4 border-b border-quantum-light pb-2">Statistical Test Batteries</h2>
-            </div>
+            {(selectedTests.has('nist') || selectedTests.has('compression') || selectedTests.has('testu01') || selectedTests.has('dieharder')) && (
+              <div className="lg:col-span-2 mt-6">
+                <h2 className="text-2xl font-bold text-quantum-navy mb-4 border-b border-quantum-light pb-2">Statistical Test Batteries</h2>
+              </div>
+            )}
 
-            <div className="lg:col-span-2">
-              <NistComplianceChart data={result.chartData} />
-            </div>
-            <div className="lg:col-span-2">
-              <CompressionChart data={result.chartData} />
-            </div>
-            <div className="lg:col-span-2">
-              <TestU01Chart data={result.chartData} />
-            </div>
-            <div className="lg:col-span-2">
-              <DieharderChart data={result.chartData} />
-            </div>
+            {selectedTests.has('nist') && (
+              <div className="lg:col-span-2">
+                <NistComplianceChart data={result.chartData} />
+              </div>
+            )}
+            {selectedTests.has('compression') && (
+              <div className="lg:col-span-2">
+                <CompressionChart data={result.chartData} />
+              </div>
+            )}
+            {selectedTests.has('testu01') && (
+              <div className="lg:col-span-2">
+                <TestU01Chart data={result.chartData} />
+              </div>
+            )}
+            {selectedTests.has('dieharder') && (
+              <div className="lg:col-span-2">
+                <DieharderChart data={result.chartData} />
+              </div>
+            )}
           </div>
 
           {result.rankedMethods.length > 0 && (
@@ -307,14 +381,18 @@ export default function AnalyzePage() {
                         <th className="py-3 px-4 font-bold">Rank</th>
                         <th className="py-3 px-4 font-bold">Method</th>
                         <th className="py-3 px-4 font-bold">Score</th>
-                        <th className="py-3 px-4 font-bold">NIST</th>
-                        <th className="py-3 px-4 font-bold">Compress</th>
-                        <th className="py-3 px-4 font-bold">TestU01</th>
-                        <th className="py-3 px-4 font-bold">Dieharder</th>
-                        <th className="py-3 px-4 font-bold">Shannon</th>
-                        <th className="py-3 px-4 font-bold">Min Ent</th>
-                        <th className="py-3 px-4 font-bold">Bias</th>
-                        <th className="py-3 px-4 font-bold text-right">Throughput</th>
+                        {selectedTests.has('nist') && <th className="py-3 px-4 font-bold">NIST</th>}
+                        {selectedTests.has('compression') && <th className="py-3 px-4 font-bold">Compress</th>}
+                        {selectedTests.has('testu01') && <th className="py-3 px-4 font-bold">TestU01</th>}
+                        {selectedTests.has('dieharder') && <th className="py-3 px-4 font-bold">Dieharder</th>}
+                        {selectedTests.has('performance') && (
+                          <>
+                            <th className="py-3 px-4 font-bold">Shannon</th>
+                            <th className="py-3 px-4 font-bold">Min Ent</th>
+                            <th className="py-3 px-4 font-bold">Bias</th>
+                            <th className="py-3 px-4 font-bold text-right">Throughput</th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="text-quantum-navy/80">
@@ -323,14 +401,18 @@ export default function AnalyzePage() {
                           <td className="py-3 px-4 text-xs font-bold">{i + 1}</td>
                           <td className={`py-3 px-4 font-bold ${i === 0 ? 'text-quantum-blue' : 'text-quantum-navy'}`}>{m.method.replace(/^\d+\.\s+/, '')}</td>
                           <td className="py-3 px-4 text-xs font-bold">{m.score.toFixed(1)}</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/15</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.compressionPass ?? 0}/4</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.testu01Pass ?? 0}/15</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.dieharderPass ?? 0}/100</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.shannon.toFixed(4)}</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.minEntropy.toFixed(4)}</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.bias.toFixed(4)}</td>
-                          <td className="py-3 px-4 text-xs font-bold text-right">{Math.round(m.bitRate).toLocaleString()} bps</td>
+                          {selectedTests.has('nist') && <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/15</td>}
+                          {selectedTests.has('compression') && <td className="py-3 px-4 text-xs font-bold">{m.compressionPass ?? 0}/4</td>}
+                          {selectedTests.has('testu01') && <td className="py-3 px-4 text-xs font-bold">{m.testu01Pass ?? 0}/15</td>}
+                          {selectedTests.has('dieharder') && <td className="py-3 px-4 text-xs font-bold">{m.dieharderPass ?? 0}/100</td>}
+                          {selectedTests.has('performance') && (
+                            <>
+                              <td className="py-3 px-4 text-xs font-bold">{m.shannon.toFixed(4)}</td>
+                              <td className="py-3 px-4 text-xs font-bold">{m.minEntropy.toFixed(4)}</td>
+                              <td className="py-3 px-4 text-xs font-bold">{m.bias.toFixed(4)}</td>
+                              <td className="py-3 px-4 text-xs font-bold text-right">{Math.round(m.bitRate).toLocaleString()} bps</td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -410,6 +492,17 @@ export default function AnalyzePage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {methods.length === 0 && isFetching && (
+                  <div className="col-span-1 sm:col-span-2 text-center text-quantum-navy/60 text-sm py-8 font-semibold">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-quantum-blue" />
+                    Loading algorithms...
+                  </div>
+                )}
+                {methods.length === 0 && !isFetching && !errorMsg && (
+                  <div className="col-span-1 sm:col-span-2 text-center text-quantum-navy/60 text-sm py-8 font-semibold">
+                    No extraction algorithms available. Check backend connection.
+                  </div>
+                )}
                 {methods.map(m => {
                   const isSlowWarning = isInputLarge && !m.isFast;
                   const isSelected = selectedMethods.has(m.id);
@@ -417,19 +510,21 @@ export default function AnalyzePage() {
                     <div 
                       key={m.id}
                       onClick={() => handleToggleMethod(m.id, m.isFast)}
-                      className={`flex items-center p-3 rounded-lg border-2 cursor-pointer ${isSelected ? 'border-quantum-blue bg-quantum-blue/5 shadow-sm' : 'border-transparent hover:bg-quantum-light/20'} transition-all`}
+                      className={`group flex items-center justify-between p-3.5 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ease-out ${isSelected ? 'border-quantum-blue bg-gradient-to-r from-quantum-blue/10 to-transparent shadow-md shadow-quantum-blue/10 transform scale-[1.02]' : 'border-quantum-light/40 bg-white hover:border-quantum-cyan hover:shadow-md hover:-translate-y-0.5'}`}
                     >
-                      <div className={`flex items-center justify-center w-5 h-5 rounded border mr-3 ${isSelected ? 'bg-quantum-blue border-quantum-blue' : 'border-quantum-light bg-white'}`}>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0 flex items-center gap-2">
-                        <p className={`text-sm truncate ${isSelected ? 'text-quantum-navy font-bold' : 'text-quantum-navy/80 font-semibold'}`}>
-                          {m.name}
-                        </p>
+                      <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                        <div className={`flex flex-shrink-0 items-center justify-center w-6 h-6 rounded-md border-2 transition-colors duration-200 ${isSelected ? 'bg-quantum-blue border-quantum-blue' : 'border-quantum-light/80 bg-white group-hover:border-quantum-cyan'}`}>
+                          {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[15px] leading-tight truncate transition-colors duration-200 ${isSelected ? 'text-quantum-navy font-extrabold' : 'text-quantum-navy/80 font-bold group-hover:text-quantum-navy'}`}>
+                            {m.name}
+                          </p>
+                        </div>
                       </div>
                       {isSlowWarning && (
-                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded ml-2" title="This method scales poorly on large inputs">
-                          <AlertTriangle className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-orange-700 bg-orange-100/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm ml-2 flex-shrink-0" title="This method scales poorly on large inputs">
+                          <AlertTriangle className="w-3.5 h-3.5" />
                           <span>Slow</span>
                         </div>
                       )}
@@ -438,6 +533,61 @@ export default function AnalyzePage() {
                 })}
               </div>
             </TerminalCard>
+            
+            <div className="mt-8">
+              <TerminalCard title="Statistical Test Suites">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {TEST_SUITES_CONFIG.map(t => {
+                    const isDisabled = file ? file.size < t.minBytes : false;
+                    const isSelected = selectedTests.has(t.id);
+                    return (
+                      <div key={t.id} className="flex flex-col gap-1">
+                        <div 
+                          onClick={() => {
+                            if (isDisabled) return;
+                            setSelectedTests(prev => {
+                              const next = new Set(prev);
+                              if (next.has(t.id)) next.delete(t.id);
+                              else next.add(t.id);
+                              return next;
+                            });
+                          }}
+                          className={`group flex flex-col justify-center p-3.5 sm:p-4 rounded-xl border-2 transition-all duration-300 ease-out ${isDisabled ? 'opacity-55 cursor-not-allowed pointer-events-none border-quantum-light/40 bg-gray-50/50' : isSelected ? 'border-quantum-blue bg-gradient-to-r from-quantum-blue/10 to-transparent shadow-md shadow-quantum-blue/10 transform scale-[1.02] cursor-pointer' : 'border-quantum-light/40 bg-white hover:border-quantum-cyan hover:shadow-md hover:-translate-y-0.5 cursor-pointer'}`}
+                        >
+                          <div className="flex items-center gap-3.5 w-full">
+                            <div className={`flex flex-shrink-0 items-center justify-center w-6 h-6 rounded-md border-2 transition-colors duration-200 ${isSelected ? 'bg-quantum-blue border-quantum-blue' : 'border-quantum-light/80 bg-white'}`}>
+                              {isSelected && <Check className="w-4 h-4 text-white" strokeWidth={3} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-[15px] leading-tight truncate transition-colors duration-200 ${isSelected ? 'text-quantum-navy font-extrabold' : 'text-quantum-navy/80 font-bold'}`}>
+                                {t.name}
+                              </p>
+                              <p className="text-[11px] text-quantum-navy/60 font-semibold truncate mt-0.5">
+                                {t.desc}
+                              </p>
+                            </div>
+                            {t.isSlow && isInputLarge && (
+                              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-orange-700 bg-orange-100/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm ml-2 flex-shrink-0" title="This test scales poorly on large inputs">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                <span>Slow</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isDisabled && (
+                          <div className="flex items-start gap-1.5 text-[10px] sm:text-[11px] font-bold text-red-600/90 bg-red-50/80 backdrop-blur-sm px-2.5 py-1.5 rounded-md shadow-sm border border-red-100/50 mt-0.5">
+                            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            <span className="leading-tight">
+                              ⚠️ Data size too small ({t.warning.replace('{current_size}', file ? formatBytes(file.size) : '0 Bytes')}) — Suite Disabled
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </TerminalCard>
+            </div>
           </div>
         </div>
       )}

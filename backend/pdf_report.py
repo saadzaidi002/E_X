@@ -299,7 +299,9 @@ def first_page_setup(canvas, doc):
 def later_pages_setup(canvas, doc):
     header_footer(canvas, doc)
 
-def generate_pdf_report(data_points, total_bits, ranked_methods):
+def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=None):
+    if selected_tests is None:
+        selected_tests = []
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         pdf_buffer, pagesize=letter,
@@ -358,28 +360,51 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
     # --- Executive Summary ---
     elements.append(Paragraph("Executive Summary", h1_style))
     best_method = ranked_methods[0]['method'] if ranked_methods else "N/A"
+    summary_parts = []
+    if 'performance' in selected_tests:
+        summary_parts.extend(["maximizing cryptographic entropy", "eliminating bias"])
+    if 'nist' in selected_tests:
+        summary_parts.append("passing the NIST SP 800-22 statistical test suite")
+    if 'testu01' in selected_tests:
+        summary_parts.append("passing the TestU01 SmallCrush suite")
+    if 'dieharder' in selected_tests:
+        summary_parts.append("passing the Dieharder test suite")
+    if 'compression' in selected_tests:
+        summary_parts.append("resisting data compression")
+        
+    objective_text = "evaluating statistical quality"
+    if summary_parts:
+        if len(summary_parts) > 1:
+            objective_text = ", ".join(summary_parts[:-1]) + ", and " + summary_parts[-1]
+        else:
+            objective_text = summary_parts[0]
+
     summary_text = (
         f"This report presents a rigorous comparative analysis of {len(data_points)-1} randomness extraction algorithms "
         f"applied to an input bitstream of {total_bits:,} bits. The objective is to identify the most effective "
-        f"post-processing method for maximizing cryptographic entropy, eliminating bias, and passing the comprehensive "
-        f"NIST SP 800-22 statistical test suite. Among the evaluated algorithms, <b>{best_method}</b> emerged as the optimal "
-        f"method, demonstrating the highest combined performance across all statistical and computational metrics."
+        f"post-processing method for {objective_text}. Among the evaluated algorithms, <b>{best_method}</b> emerged as the optimal "
+        f"method, demonstrating the highest combined performance across the evaluated metrics."
     )
     elements.append(Paragraph(summary_text, body_style))
 
     # --- Methodology ---
     elements.append(Paragraph("Methodology", h1_style))
-    methodology_text = (
-        "The evaluation utilizes five key quantitative metrics to assess extractor performance:<br/><br/>"
-        "<b>Shannon & Min-Entropy:</b> Shannon entropy measures the average unpredictability of the bitstream, while Min-entropy measures "
-        "the worst-case predictability—a vital metric for cryptographic security. Values approaching the ideal 1.0 bit/bit indicate perfect uniformity.<br/>"
-        "<b>Bias:</b> Measures the deviation from an equal probability of 1s and 0s. Lower values (closer to 0.0) represent a perfectly balanced stream.<br/>"
-        "<b>Throughput (Bit Rate):</b> Represents the speed of the extraction process, measured in bits per second (bps). High throughput is essential for real-time applications.<br/>"
-        "<b>Computational Efficiency:</b> The total execution time required by the algorithm in milliseconds. Lower times indicate better performance.<br/>"
-        "<b>NIST SP 800-22 Compliance:</b> A rigorous suite of 16 statistical tests. Methods are evaluated based on their pass rate, "
-        "where 'Pass' means the p-value exceeded the 0.01 significance threshold, 'Fail' indicates a detectable pattern, and 'Insufficient data' "
-        "means the input was too short to perform the test."
-    )
+    methodology_lines = []
+    if 'performance' in selected_tests:
+        methodology_lines.append("<b>Shannon & Min-Entropy:</b> Shannon entropy measures the average unpredictability of the bitstream, while Min-entropy measures the worst-case predictability—a vital metric for cryptographic security. Values approaching the ideal 1.0 bit/bit indicate perfect uniformity.")
+        methodology_lines.append("<b>Bias:</b> Measures the deviation from an equal probability of 1s and 0s. Lower values (closer to 0.0) represent a perfectly balanced stream.")
+        methodology_lines.append("<b>Throughput (Bit Rate):</b> Represents the speed of the extraction process, measured in bits per second (bps). High throughput is essential for real-time applications.")
+        methodology_lines.append("<b>Computational Efficiency:</b> The total execution time required by the algorithm in milliseconds. Lower times indicate better performance.")
+    if 'nist' in selected_tests:
+        methodology_lines.append("<b>NIST SP 800-22 Compliance:</b> A rigorous suite of 16 statistical tests. Methods are evaluated based on their pass rate, where 'Pass' means the p-value exceeded the 0.01 significance threshold, 'Fail' indicates a detectable pattern, and 'Insufficient data' means the input was too short to perform the test.")
+    if 'compression' in selected_tests:
+        methodology_lines.append("<b>Compression Viability:</b> Evaluates if the output can be compressed by standard algorithms like zlib, lzma, bzip2, and gzip. Truly random data cannot be compressed efficiently.")
+    if 'testu01' in selected_tests:
+        methodology_lines.append("<b>TestU01 (SmallCrush):</b> A battery of empirical statistical tests for uniform random number generators.")
+    if 'dieharder' in selected_tests:
+        methodology_lines.append("<b>Dieharder Test Suite:</b> An advanced suite of rigorous statistical tests designed to push random number generators to their limits.")
+        
+    methodology_text = f"The evaluation utilizes {len(methodology_lines)} key quantitative metrics to assess extractor performance:<br/><br/>" + "<br/>".join(methodology_lines)
     elements.append(Paragraph(methodology_text, body_style))
     elements.append(PageBreak())
 
@@ -387,73 +412,107 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
     elements.append(Paragraph("Results & Analysis", h1_style))
 
     # 1. Entropy
-    elements.append(Paragraph("Entropy Analysis", h2_style))
-    elements.append(Image(generate_entropy_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("The chart above visualizes both Shannon entropy and Min-entropy. Methods approaching the 1.0 ideal line offer the highest theoretical unpredictability, mitigating vulnerabilities associated with raw, unextracted bitstreams.", body_style))
-    elements.append(Spacer(1, 15))
+    if 'performance' in selected_tests:
+        elements.append(Paragraph("Entropy Analysis", h2_style))
+        elements.append(Image(generate_entropy_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("The chart above visualizes both Shannon entropy and Min-entropy. Methods approaching the 1.0 ideal line offer the highest theoretical unpredictability, mitigating vulnerabilities associated with raw, unextracted bitstreams.", body_style))
+        elements.append(Spacer(1, 15))
 
     # 2. NIST
-    elements.append(Paragraph("NIST SP 800-22 Compliance", h2_style))
-    elements.append(Image(generate_nist_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("NIST compliance is the gold standard for statistical randomness. The stacked bars illustrate the proportion of tests passed (teal) versus failed (red). The top-performing methods successfully clear the majority of applicable tests.", body_style))
-    elements.append(PageBreak())
+    if 'nist' in selected_tests:
+        elements.append(Paragraph("NIST SP 800-22 Compliance", h2_style))
+        elements.append(Image(generate_nist_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("NIST compliance is the gold standard for statistical randomness. The stacked bars illustrate the proportion of tests passed (teal) versus failed (red). The top-performing methods successfully clear the majority of applicable tests.", body_style))
+        elements.append(PageBreak())
 
     # 3. Throughput
-    elements.append(Paragraph("Throughput Analysis", h2_style))
-    elements.append(Image(generate_throughput_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("Throughput is evaluated in bits per second. While complex cryptographic hashes may yield excellent entropy, simpler debiasing techniques often provide superior throughput, representing a critical trade-off for system design.", body_style))
-    elements.append(Spacer(1, 15))
+    if 'performance' in selected_tests:
+        elements.append(Paragraph("Throughput Analysis", h2_style))
+        elements.append(Image(generate_throughput_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("Throughput is evaluated in bits per second. While complex cryptographic hashes may yield excellent entropy, simpler debiasing techniques often provide superior throughput, representing a critical trade-off for system design.", body_style))
+        elements.append(Spacer(1, 15))
 
     # 4. Computational Efficiency
-    elements.append(Paragraph("Computational Efficiency", h2_style))
-    elements.append(Image(generate_efficiency_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("Execution time (latency) in milliseconds. Efficient extractors are positioned at the top with minimal latency, while quadratic-time algorithms are visually distinct due to higher execution times.", body_style))
-    elements.append(PageBreak())
+    if 'performance' in selected_tests:
+        elements.append(Paragraph("Computational Efficiency", h2_style))
+        elements.append(Image(generate_efficiency_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("Execution time (latency) in milliseconds. Efficient extractors are positioned at the top with minimal latency, while quadratic-time algorithms are visually distinct due to higher execution times.", body_style))
+        elements.append(PageBreak())
 
     # 5. Bias
-    elements.append(Paragraph("Bias Analysis", h2_style))
-    elements.append(Image(generate_bias_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("This chart measures residual bias. Bars in green indicate excellent performance (bias < 0.01), amber signifies moderate bias, and red indicates high deviation from uniformity. An ideal extractor completely eliminates systemic bias.", body_style))
-    elements.append(PageBreak())
+    if 'performance' in selected_tests:
+        elements.append(Paragraph("Bias Analysis", h2_style))
+        elements.append(Image(generate_bias_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("This chart measures residual bias. Bars in green indicate excellent performance (bias < 0.01), amber signifies moderate bias, and red indicates high deviation from uniformity. An ideal extractor completely eliminates systemic bias.", body_style))
+        elements.append(PageBreak())
 
     # 6. Compression
-    elements.append(Paragraph("Compression Viability", h2_style))
-    elements.append(Image(generate_compression_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("Genuinely random data cannot be efficiently compressed. This chart shows the pass rate of 4 compression algorithms (zlib, lzma, bzip2, gzip), where passing means the compression ratio is >= 0.999.", body_style))
-    elements.append(Spacer(1, 15))
-    
+    if 'compression' in selected_tests:
+        elements.append(Paragraph("Compression Viability", h2_style))
+        elements.append(Image(generate_compression_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("Genuinely random data cannot be efficiently compressed. This chart shows the pass rate of 4 compression algorithms (zlib, lzma, bzip2, gzip), where passing means the compression ratio is >= 0.999.", body_style))
+        elements.append(Spacer(1, 15))
+        
     # 7. TestU01
-    elements.append(Paragraph("TestU01 (SmallCrush)", h2_style))
-    elements.append(Image(generate_testu01_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("TestU01 is a software library offering empirical statistical tests for uniform random number generators. The SmallCrush battery is used here.", body_style))
-    elements.append(PageBreak())
-    
+    if 'testu01' in selected_tests:
+        elements.append(Paragraph("TestU01 (SmallCrush)", h2_style))
+        elements.append(Image(generate_testu01_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("TestU01 is a software library offering empirical statistical tests for uniform random number generators. The SmallCrush battery is used here.", body_style))
+        elements.append(PageBreak())
+        
     # 8. Dieharder
-    elements.append(Paragraph("Dieharder Test Suite", h2_style))
-    elements.append(Image(generate_dieharder_chart(data_points), width=450, height=225))
-    elements.append(Paragraph("Dieharder evaluates random number generators via a collection of rigorous statistical tests. Requires substantial data size to yield meaningful results.", body_style))
-    elements.append(PageBreak())
+    if 'dieharder' in selected_tests:
+        elements.append(Paragraph("Dieharder Test Suite", h2_style))
+        elements.append(Image(generate_dieharder_chart(data_points), width=450, height=225))
+        elements.append(Paragraph("Dieharder evaluates random number generators via a collection of rigorous statistical tests. Requires substantial data size to yield meaningful results.", body_style))
+        elements.append(PageBreak())
 
     # --- Performance Rankings Table ---
     elements.append(Paragraph("Performance Rankings", h1_style))
     
-    table_data = [['Rank', 'Method', 'Score', 'NIST', 'Comp.', 'U01', 'Die.', 'Shannon', 'Min Ent.', 'Bias', 'bps']]
+    headers = ['Rank', 'Method', 'Score']
+    cols_order = []
+    if 'nist' in selected_tests:
+        headers.append('NIST')
+        cols_order.append('nist')
+    if 'compression' in selected_tests:
+        headers.append('Comp.')
+        cols_order.append('comp')
+    if 'testu01' in selected_tests:
+        headers.append('U01')
+        cols_order.append('u01')
+    if 'dieharder' in selected_tests:
+        headers.append('Die.')
+        cols_order.append('die')
+    if 'performance' in selected_tests:
+        headers.extend(['Shannon', 'Min Ent.', 'Bias', 'bps'])
+        cols_order.extend(['shannon', 'min', 'bias', 'bps'])
+        
+    table_data = [headers]
     for i, m in enumerate(ranked_methods):
-        table_data.append([
-            str(i + 1),
-            format_short_name(m['method']),
-            f"{m['score']:.1f}",
-            f"{m['nistPass']}/15",
-            f"{m.get('compressionPass', 0)}/4",
-            f"{m.get('testu01Pass', 0)}/15",
-            f"{m.get('dieharderPass', 0)}/100",
-            f"{m['shannon']:.4f}",
-            f"{m['minEntropy']:.4f}",
-            f"{m['bias']:.4f}",
-            f"{int(m['bitRate']):,}"
-        ])
+        row = [str(i + 1), format_short_name(m['method']), f"{m['score']:.1f}"]
+        if 'nist' in cols_order: row.append(f"{m['nistPass']}/15")
+        if 'comp' in cols_order: row.append(f"{m.get('compressionPass', 0)}/4")
+        if 'u01' in cols_order: row.append(f"{m.get('testu01Pass', 0)}/15")
+        if 'die' in cols_order: row.append(f"{m.get('dieharderPass', 0)}/100")
+        if 'performance' in selected_tests:
+            row.extend([
+                f"{m['shannon']:.4f}",
+                f"{m['minEntropy']:.4f}",
+                f"{m['bias']:.4f}",
+                f"{int(m['bitRate']):,}"
+            ])
+        table_data.append(row)
 
-    t = Table(table_data, colWidths=[25, 90, 30, 35, 35, 35, 35, 45, 45, 40, 60])
+    colWidths = [25, 90, 30]
+    for col in cols_order:
+        if col in ['nist', 'comp', 'u01', 'die']: colWidths.append(35)
+        elif col == 'shannon': colWidths.append(45)
+        elif col == 'min': colWidths.append(45)
+        elif col == 'bias': colWidths.append(40)
+        elif col == 'bps': colWidths.append(60)
+
+    t = Table(table_data, colWidths=colWidths)
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), rl_colors.HexColor('#0077B6')),
         ('TEXTCOLOR', (0, 0), (-1, 0), rl_colors.white),
@@ -479,11 +538,39 @@ def generate_pdf_report(data_points, total_bits, ranked_methods):
         conclusion_text = (
             f"Based on the comprehensive analysis of {len(ranked_methods)} post-processing algorithms, <b>{top['method']}</b> "
             f"is definitively the optimal extraction method for this specific bitstream. It achieved the highest cumulative score "
-            f"of {top['score']:.1f}, successfully passing {top['nistPass']} NIST statistical tests while maintaining an exceptional "
-            f"min-entropy level of {top['minEntropy']:.4f} per bit. The data clearly indicates that this algorithm provides the best "
-            f"balance of cryptographic unpredictability, minimal bias ({top['bias']:.4f}), and computational throughput. We recommend "
-            f"integrating {top['method']} for secure, real-time randomness generation under these operational conditions."
+            f"of {top['score']:.1f}"
         )
+        
+        reasons = []
+        if 'nist' in selected_tests:
+            reasons.append(f"successfully passing {top['nistPass']} NIST statistical tests")
+        if 'performance' in selected_tests:
+            reasons.append(f"maintaining an exceptional min-entropy level of {top['minEntropy']:.4f} per bit")
+            
+        if reasons:
+            conclusion_text += ", " + " while ".join(reasons) + ". "
+        else:
+            conclusion_text += ". "
+            
+        conclusion_text += "The data clearly indicates that this algorithm provides the best balance of "
+        
+        balance_parts = []
+        if 'performance' in selected_tests:
+            balance_parts.extend(["cryptographic unpredictability", f"minimal bias ({top['bias']:.4f})", "computational throughput"])
+        if 'compression' in selected_tests:
+            balance_parts.append("incompressibility")
+        if 'testu01' in selected_tests or 'dieharder' in selected_tests or 'nist' in selected_tests:
+            balance_parts.append("statistical robustness")
+            
+        if balance_parts:
+            if len(balance_parts) > 1:
+                conclusion_text += ", ".join(balance_parts[:-1]) + ", and " + balance_parts[-1] + ". "
+            else:
+                conclusion_text += balance_parts[0] + ". "
+        else:
+            conclusion_text += "measured metrics. "
+            
+        conclusion_text += f"We recommend integrating {top['method']} for secure, real-time randomness generation under these operational conditions."
     else:
         conclusion_text = "No post-processing methods were successfully analyzed. Please ensure input data is provided and at least one algorithm is selected."
         

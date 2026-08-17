@@ -12,6 +12,8 @@ interface AnalysisContextType {
   setMethods: (methods: Method[]) => void;
   selectedMethods: Set<string>;
   setSelectedMethods: React.Dispatch<React.SetStateAction<Set<string>>>;
+  selectedTests: Set<string>;
+  setSelectedTests: React.Dispatch<React.SetStateAction<Set<string>>>;
   status: 'idle' | 'analyzing' | 'complete' | 'error';
   setStatus: (status: 'idle' | 'analyzing' | 'complete' | 'error') => void;
   errorMsg: string;
@@ -35,9 +37,12 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [analysisLogs, setAnalysisLogs] = useState<{ time: string; msg: string }[]>([]);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
+  const [selectedTests, setSelectedTests] = useState<Set<string>>(new Set([]));
+
   const resetSession = () => {
     setFile(null);
     setSelectedMethods(new Set());
+    setSelectedTests(new Set([]));
     setStatus('idle');
     setErrorMsg('');
     setAnalysisLogs([]);
@@ -55,6 +60,8 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         setMethods,
         selectedMethods,
         setSelectedMethods,
+        selectedTests,
+        setSelectedTests,
         status,
         setStatus,
         errorMsg,

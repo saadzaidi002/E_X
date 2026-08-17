@@ -70,7 +70,7 @@ const mockMethods: Method[] = [
   { id: 'm20', name: 'SipHash', isFast: true },
 ];
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export async function getMethods(): Promise<Method[]> {
   const res = await fetch(`${API_BASE}/api/methods`);
@@ -84,17 +84,45 @@ export async function getLimits(): Promise<Limits> {
   return res.json();
 }
 
-export async function analyzeFile(file: File, methods: string[]): Promise<AnalysisResult> {
+export async function analyzeFile(
+  file: File, 
+  methods: string[], 
+  tests: string[],
+  onProgress?: (logs: string[]) => void
+): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
+  formData.append('tests', JSON.stringify(tests));
   
-  const res = await fetch(`${API_BASE}/api/analyze`, {
+  const startRes = await fetch(`${API_BASE}/api/analyze/start`, {
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) throw new Error('Failed to analyze');
-  return res.json();
+  if (!startRes.ok) throw new Error('Failed to start analysis job');
+  const { job_id } = await startRes.json();
+
+  while (true) {
+    const statusRes = await fetch(`${API_BASE}/api/analyze/status/${job_id}`);
+    if (!statusRes.ok) throw new Error('Failed to fetch job status');
+    
+    const statusData = await statusRes.json();
+    
+    if (onProgress && statusData.logs) {
+      onProgress(statusData.logs);
+    }
+    
+    if (statusData.status === 'complete') {
+      return statusData.result;
+    }
+    
+    if (statusData.status === 'error') {
+      throw new Error(statusData.error || 'Unknown analysis error occurred');
+    }
+    
+    // Poll every 1.5 seconds
+    await new Promise(r => setTimeout(r, 1500));
+  }
 }
 
 export async function downloadBitsZip(file: File, methods: string[]): Promise<void> {
@@ -119,7 +147,7 @@ export async function downloadBitsZip(file: File, methods: string[]): Promise<vo
   document.body.removeChild(a);
 }
 
-export async function downloadPdfReport(analysisData: AnalysisResult): Promise<void> {
+export async function downloadPdfReport(analysisData: AnalysisResult, selectedTests: Set<string>): Promise<void> {
   const res = await fetch(`${API_BASE}/api/download/pdf`, {
     method: 'POST',
     headers: {
@@ -129,6 +157,7 @@ export async function downloadPdfReport(analysisData: AnalysisResult): Promise<v
       chartData: analysisData.chartData,
       rankedMethods: analysisData.rankedMethods,
       totalBits: analysisData.totalBits || 0,
+      selectedTests: Array.from(selectedTests),
     }),
   });
   if (!res.ok) {

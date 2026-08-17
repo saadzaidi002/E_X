@@ -98,7 +98,7 @@ def run_testu01_suite(bits):
     uint32_array = np.packbits(bits_array.reshape(-1, 8)).view(np.uint32)
 
     try:
-        res = pytestu01.run_smallcrush(uint32_array.tolist())
+        res = pytestu01.run_smallcrush(uint32_array)
         
         tests = []
         pass_count = 0
@@ -133,9 +133,9 @@ def run_testu01_suite(bits):
             "error": f"Failed to execute TestU01: {str(e)}"
         }
 
-def run_dieharder_suite(bits):
+def run_dieharder_suite(bits, exhaustive=False):
     """
-    Runs the Dieharder test suite via subprocess.
+    Runs the Dieharder test suite via subprocess using stdin.
     """
     bits_array = np.asarray(bits, dtype=np.int8)
     
@@ -148,19 +148,36 @@ def run_dieharder_suite(bits):
         
     byte_data = np.packbits(bits_array).tobytes()
     
-    fd, temp_path = tempfile.mkstemp(suffix=".bin")
-    with os.fdopen(fd, 'wb') as f:
-        f.write(byte_data)
-        
     try:
-        result = subprocess.run(
-            ['dieharder', '-a', '-g', '201', '-f', temp_path],
-            capture_output=True,
-            text=True,
-            timeout=180
-        )
+        tests_output = ""
+        if exhaustive:
+            result = subprocess.run(
+                ['dieharder', '-a', '-g', '200'],
+                input=byte_data,
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+            tests_output = result.stdout
+            if "command not found" in result.stderr:
+                return {"error": "Dieharder not available in this environment."}
+        else:
+            curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
+            outputs = []
+            for test_num in curated_tests:
+                res = subprocess.run(
+                    ['dieharder', '-d', str(test_num), '-g', '200'],
+                    input=byte_data,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                outputs.append(res.stdout)
+                if "command not found" in res.stderr:
+                    return {"error": "Dieharder not available in this environment."}
+            tests_output = "\n".join(outputs)
         
-        output = result.stdout
+        output = tests_output
         
         tests = []
         pass_count = 0
@@ -197,7 +214,7 @@ def run_dieharder_suite(bits):
         pass_rate = pass_count / total_count if total_count > 0 else 0.0
         
         if total_count == 0:
-            if "command not found" in result.stderr or not result.stdout.strip():
+            if not tests_output.strip():
                 return {
                     "error": "Dieharder not available in this environment. It is fully supported in the deployed Linux environment."
                 }
@@ -226,6 +243,3 @@ def run_dieharder_suite(bits):
         return {
             "error": f"Failed to execute Dieharder: {str(e)}"
         }
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)

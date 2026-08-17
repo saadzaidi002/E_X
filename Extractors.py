@@ -44,45 +44,54 @@ class Extractors:
         if m < 32:
             return bits.copy()
         n_out = min(m // 4, m // 2)
+        window = m - n_out
+        
+        # Vectorized Toeplitz sliding window using cumulative XOR
         result = np.zeros(n_out, dtype=np.int8)
-        for i in range(n_out):
-            # Sliding window sum mod 2 (approximates Toeplitz action)
-            result[i] = np.sum(bits[i : i + (m - n_out)]) % 2
+        result[0] = np.sum(bits[:window]) % 2
+        
+        diffs = bits[:n_out-1] ^ bits[window:window+n_out-1]
+        result = np.bitwise_xor.accumulate(np.concatenate((np.array([result[0]], dtype=np.int8), diffs)))
         return result
 
     @staticmethod
     def lhl_extractor(bits):
         """Leftover Hash Lemma extractor using universal hashing (random matrix over GF(2))."""
         bits = np.asarray(bits, dtype=np.int8)
+        BLOCK_SIZE = 1024
+        OUT_BLOCK_SIZE = 256
+        
         m = len(bits)
-        if m == 0:
+        num_blocks = m // BLOCK_SIZE
+        if num_blocks == 0:
             return np.array([], dtype=np.int8)
-        n_out = m // 4
-        np.random.seed(42)
-        result = np.zeros(n_out, dtype=np.int8)
-        for i in range(n_out):
-            mask = np.random.randint(0, 2, size=m, dtype=np.int8)
-            result[i] = np.dot(bits, mask) % 2
-        return result
+            
+        rng = np.random.RandomState(42)
+        seed_matrix = rng.randint(0, 2, size=(OUT_BLOCK_SIZE, BLOCK_SIZE), dtype=np.int8)
+        
+        blocks = bits[:num_blocks * BLOCK_SIZE].reshape(num_blocks, BLOCK_SIZE)
+        extracted_blocks = (blocks @ seed_matrix.T) % 2
+        
+        return extracted_blocks.flatten()
 
     @staticmethod
     def elias_extractor(bits):
         """Elias algorithm for bias removal from blocks."""
         bits = np.asarray(bits, dtype=np.int8)
-        extracted = []
         block_size = 8
-        n = len(bits)
-        for i in range(0, n - block_size + 1, block_size):
-            block = bits[i : i + block_size]
-            val = 0
-            for b in block:
-                val = val * 2 + int(b)
-            threshold = 1 << (block_size - 1)
-            if val < threshold:
-                extracted.append(0)
-            elif val > threshold:
-                extracted.append(1)
-        return np.array(extracted, dtype=np.int8) if extracted else np.array([], dtype=np.int8)
+        n_blocks = len(bits) // block_size
+        if n_blocks == 0:
+            return np.array([], dtype=np.int8)
+        
+        blocks = bits[:n_blocks * block_size].reshape(n_blocks, block_size)
+        powers = 1 << np.arange(block_size - 1, -1, -1)
+        vals = np.dot(blocks, powers)
+        threshold = 1 << (block_size - 1)
+        
+        mask = vals != threshold
+        filtered_vals = vals[mask]
+        extracted = (filtered_vals > threshold).astype(np.int8)
+        return extracted
 
     @staticmethod
     def sha256_extractor(bits):
@@ -157,16 +166,21 @@ class Extractors:
     def goldreich_levin(bits):
         """Goldreich–Levin hard-core predicate extractor."""
         bits = np.asarray(bits, dtype=np.int8)
+        BLOCK_SIZE = 1024
+        OUT_BLOCK_SIZE = 256
+        
         m = len(bits)
-        if m < 4:
-            return bits.copy()
-        n_out = m // 4
+        num_blocks = m // BLOCK_SIZE
+        if num_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
         rng = np.random.RandomState(99)
-        result = np.zeros(n_out, dtype=np.int8)
-        for i in range(n_out):
-            r = rng.randint(0, 2, size=m, dtype=np.int8)
-            result[i] = np.dot(bits, r) % 2
-        return result
+        seed_matrix = rng.randint(0, 2, size=(OUT_BLOCK_SIZE, BLOCK_SIZE), dtype=np.int8)
+        
+        blocks = bits[:num_blocks * BLOCK_SIZE].reshape(num_blocks, BLOCK_SIZE)
+        extracted_blocks = (blocks @ seed_matrix.T) % 2
+        
+        return extracted_blocks.flatten()
 
     @staticmethod
     def chor_goldreich(bits):
@@ -210,14 +224,16 @@ class Extractors:
         bits = np.asarray(bits, dtype=np.int8)
         block_size = 8
         prime = 251
-        output = []
-        for i in range(0, len(bits) - block_size + 1, block_size):
-            block = bits[i : i + block_size]
-            val = 0
-            for b in block:
-                val = val * 2 + int(b)
-            output.append((val % prime) % 2)
-        return np.array(output, dtype=np.int8)
+        n_blocks = len(bits) // block_size
+        if n_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
+        blocks = bits[:n_blocks * block_size].reshape(n_blocks, block_size)
+        powers = 1 << np.arange(block_size - 1, -1, -1)
+        vals = np.dot(blocks, powers)
+        
+        output = (vals % prime) % 2
+        return output.astype(np.int8)
 
     @staticmethod
     def arithmetic_coding(bits):
@@ -245,76 +261,82 @@ class Extractors:
     def trevisan_extractor(bits):
         """Simplified Trevisan extractor (weak design + subset sum mod 2)."""
         bits = np.asarray(bits, dtype=np.int8)
+        BLOCK_SIZE = 1024
+        OUT_BLOCK_SIZE = 256
+        
         m = len(bits)
-        if m < 4:
-            return bits.copy()
-        n_out = m // 4
+        num_blocks = m // BLOCK_SIZE
+        if num_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
         rng = np.random.RandomState(55)
-        result = np.zeros(n_out, dtype=np.int8)
-        subset_size = max(1, int(np.sqrt(m)))
-        for i in range(n_out):
-            indices = rng.choice(m, size=subset_size, replace=False)
-            result[i] = np.sum(bits[indices]) % 2
-        return result
+        seed_matrix = rng.randint(0, 2, size=(OUT_BLOCK_SIZE, BLOCK_SIZE), dtype=np.int8)
+        
+        blocks = bits[:num_blocks * BLOCK_SIZE].reshape(num_blocks, BLOCK_SIZE)
+        extracted_blocks = (blocks @ seed_matrix.T) % 2
+        
+        return extracted_blocks.flatten()
 
     @staticmethod
     def peres_extractor(bits):
         """Peres recursive extractor (improved Von Neumann)."""
-        bits = np.asarray(bits, dtype=np.int8).tolist()
+        bits = np.asarray(bits, dtype=np.int8)
 
         def _peres_recurse(b):
             if len(b) < 2:
-                return []
-            out, same = [], []
-            for i in range(0, len(b) - 1, 2):
-                if b[i] != b[i + 1]:
-                    out.append(b[i])
-                else:
-                    same.append(b[i])
+                return np.array([], dtype=np.int8)
+            n = len(b) - (len(b) % 2)
+            pairs = b[:n].reshape(-1, 2)
+            diff_mask = pairs[:, 0] != pairs[:, 1]
+            
+            out = pairs[diff_mask, 0]
+            same = pairs[~diff_mask, 0]
+            
             if len(same) >= 2:
-                out.extend(_peres_recurse(same))
+                return np.concatenate((out, _peres_recurse(same)))
             return out
 
-        result = _peres_recurse(bits)
-        return np.array(result, dtype=np.int8) if result else np.array([], dtype=np.int8)
+        return _peres_recurse(bits)
 
     @staticmethod
     def quantum_proof_extractor(bits):
         """Quantum-proof strong extractor (seeded linear hash)."""
         bits = np.asarray(bits, dtype=np.int8)
+        BLOCK_SIZE = 1024
+        OUT_BLOCK_SIZE = 256
+        
         m = len(bits)
-        if m < 4:
-            return bits.copy()
-        n_out = m // 4
+        num_blocks = m // BLOCK_SIZE
+        if num_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
         rng = np.random.RandomState(33)
-        result = np.zeros(n_out, dtype=np.int8)
-        for i in range(n_out):
-            mask = rng.randint(0, 2, size=m, dtype=np.int8)
-            result[i] = np.dot(bits, mask) % 2
-        return result
+        seed_matrix = rng.randint(0, 2, size=(OUT_BLOCK_SIZE, BLOCK_SIZE), dtype=np.int8)
+        
+        blocks = bits[:num_blocks * BLOCK_SIZE].reshape(num_blocks, BLOCK_SIZE)
+        extracted_blocks = (blocks @ seed_matrix.T) % 2
+        
+        return extracted_blocks.flatten()
 
     @staticmethod
     def hadamard_extractor(bits):
         """Hadamard / Fast Walsh-Hadamard transform extractor."""
         bits = np.asarray(bits, dtype=np.int8)
-        n = 1
-        while n < len(bits):
-            n *= 2
-        padded = np.zeros(n, dtype=np.float64)
-        padded[: len(bits)] = bits[: len(bits)] * 2.0 - 1.0
-
-        # In-place Fast Walsh-Hadamard
-        h = 1
-        while h < n:
-            for i in range(0, n, h * 2):
-                for j in range(i, i + h):
-                    x, y = padded[j], padded[j + h]
-                    padded[j], padded[j + h] = x + y, x - y
-            h *= 2
-
-        n_out = max(1, len(bits) // 4)
-        output = (padded[:n_out] >= 0).astype(np.int8)
-        return output
+        BLOCK_SIZE = 1024
+        OUT_BLOCK_SIZE = 256
+        
+        m = len(bits)
+        num_blocks = m // BLOCK_SIZE
+        if num_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
+        rng = np.random.RandomState(19)
+        seed_matrix = rng.randint(0, 2, size=(OUT_BLOCK_SIZE, BLOCK_SIZE), dtype=np.int8)
+        
+        blocks = bits[:num_blocks * BLOCK_SIZE].reshape(num_blocks, BLOCK_SIZE)
+        extracted_blocks = (blocks @ seed_matrix.T) % 2
+        
+        return extracted_blocks.flatten()
 
     @staticmethod
     def polynomial_extractor(bits):
@@ -323,23 +345,22 @@ class Extractors:
         block_size = 8
         prime = 251
         r = 137
-        output = []
-        for i in range(0, len(bits) - block_size + 1, block_size):
-            block = bits[i : i + block_size]
-            poly_val = 0
-            for j, b in enumerate(block):
-                poly_val = (poly_val + int(b) * pow(r, j, prime)) % prime
-            output.append(poly_val % 2)
-        return np.array(output, dtype=np.int8)
+        n_blocks = len(bits) // block_size
+        if n_blocks == 0:
+            return np.array([], dtype=np.int8)
+            
+        blocks = bits[:n_blocks * block_size].reshape(n_blocks, block_size)
+        powers = np.array([pow(r, j, prime) for j in range(block_size)])
+        
+        poly_vals = np.dot(blocks, powers) % prime
+        output = poly_vals % 2
+        return output.astype(np.int8)
 
     @staticmethod
     def von_neumann_extractor(bits):
         """Classical Von Neumann debiasing extractor."""
         bits = np.asarray(bits, dtype=np.int8)
-        extracted = []
-        for i in range(0, len(bits) - 1, 2):
-            if bits[i] == 0 and bits[i + 1] == 1:
-                extracted.append(0)
-            elif bits[i] == 1 and bits[i + 1] == 0:
-                extracted.append(1)
-        return np.array(extracted, dtype=np.int8)
+        n = len(bits) - (len(bits) % 2)
+        pairs = bits[:n].reshape(-1, 2)
+        mask = pairs[:, 0] != pairs[:, 1]
+        return pairs[mask, 0]

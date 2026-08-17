@@ -74,8 +74,10 @@ function ChartWrapper({
           className="w-full h-full pb-4 cursor-pointer overflow-x-auto no-scrollbar [&_.recharts-wrapper]:!outline-none [&_.recharts-surface]:!outline-none [&_*]:focus:!outline-none"
           title="Click to expand chart"
         >
-          <div className="min-w-[600px] h-full">
-            {children}
+          <div className="min-w-[600px] h-full min-h-[300px] relative">
+            <div className="absolute inset-0">
+              {children}
+            </div>
           </div>
         </div>
       </TerminalCard>
@@ -95,8 +97,10 @@ function ChartWrapper({
             
             <div className="flex-1 p-6 min-h-0 flex flex-col lg:flex-row gap-6 overflow-auto">
               <div className="flex-1 min-h-[400px] overflow-x-auto no-scrollbar">
-                <div className="min-w-[600px] h-full">
-                  {children}
+                <div className="min-w-[600px] h-full min-h-[400px] relative">
+                  <div className="absolute inset-0">
+                    {children}
+                  </div>
                 </div>
               </div>
               
@@ -146,7 +150,7 @@ function ChartWrapper({
 export function EntropyChart({ data }: ChartProps) {
   return (
     <ChartWrapper title="Entropy Comparison" data={data}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -165,7 +169,7 @@ export function EntropyChart({ data }: ChartProps) {
 export function BitRateChart({ data }: ChartProps) {
   return (
     <ChartWrapper title="Throughput (Bits Per Second)" data={data}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -187,7 +191,7 @@ export function BiasChart({ data }: ChartProps) {
 
   return (
     <ChartWrapper title="Bias Level" data={data}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -224,7 +228,7 @@ export function NistComplianceChart({ data }: ChartProps) {
       setExpanded={setExpanded}
       selectedMethod={selectedMethod}
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -249,7 +253,7 @@ export function EfficiencyChart({ data }: ChartProps) {
 
   return (
     <ChartWrapper title="Computational Efficiency (ms)" data={sortedData}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 10, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -279,7 +283,7 @@ export function CompressionChart({ data }: ChartProps) {
 
   return (
     <ChartWrapper title="Compression Tests (4 Algorithms)" data={sortedData as any}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -313,7 +317,7 @@ export function TestU01Chart({ data }: ChartProps) {
 
   return (
     <ChartWrapper title="TestU01 SmallCrush" data={sortedData as any}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
@@ -348,7 +352,7 @@ export function DieharderChart({ data }: ChartProps) {
 
   return (
     <ChartWrapper title="Dieharder Suite" data={sortedData as any}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="99%" height="100%">
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
