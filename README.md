@@ -1,11 +1,12 @@
 ---
 title: RNG Extractors
-emoji: ??
+emoji: 🚀
 colorFrom: blue
 colorTo: green
 sdk: docker
 pinned: false
 ---
+
 # ⚠️ CONFIDENTIAL — All Rights Reserved
 
 This repository and all of its contents — including but not limited to source code, algorithms, documentation, assets, and any associated materials — are the **exclusive intellectual property** of the author(s).
