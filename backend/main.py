@@ -61,7 +61,7 @@ def get_limits():
     }
 
 MIN_BITS_MAP = {
-    "dieharder": 1000000,
+    "dieharder": 16000,
     "testu01": 16000000,
     "nist": 1000000,
     "compression": 512000,

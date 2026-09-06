@@ -141,7 +141,7 @@ def run_dieharder_suite(bits, exhaustive=False):
     """
     bits_array = np.asarray(bits, dtype=np.int8)
     
-    MIN_BITS = 1_000_000
+    MIN_BITS = 16000
     if len(bits_array) < MIN_BITS:
         return {
             "error": f"Insufficient data. Dieharder requires a substantial dataset (at least {MIN_BITS} bits) to produce meaningful results.",
@@ -157,31 +157,31 @@ def run_dieharder_suite(bits, exhaustive=False):
             with os.fdopen(fd, 'wb') as f:
                 f.write(byte_data)
                 
-        tests_output = ""
-        if exhaustive:
-            result = subprocess.run(
-                ['dieharder', '-a', '-g', '202', '-f', temp_path],
-                capture_output=True,
-                text=True,
-                timeout=180
-            )
-            tests_output = result.stdout
-            if "command not found" in result.stderr:
-                return {"error": "Dieharder not available in this environment."}
-        else:
-            curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
-            outputs = []
-            for test_num in curated_tests:
-                res = subprocess.run(
-                    ['dieharder', '-d', str(test_num), '-g', '202', '-f', temp_path],
+            tests_output = ""
+            if exhaustive:
+                result = subprocess.run(
+                    ['dieharder', '-a', '-g', '202', '-f', temp_path],
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=180
                 )
-                outputs.append(res.stdout)
-                if "command not found" in res.stderr:
+                tests_output = result.stdout
+                if "command not found" in result.stderr:
                     return {"error": "Dieharder not available in this environment."}
-            tests_output = "\n".join(outputs)
+            else:
+                curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
+                outputs = []
+                for test_num in curated_tests:
+                    res = subprocess.run(
+                        ['dieharder', '-d', str(test_num), '-g', '202', '-f', temp_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+                    outputs.append(res.stdout)
+                    if "command not found" in res.stderr:
+                        return {"error": "Dieharder not available in this environment."}
+                tests_output = "\n".join(outputs)
         finally:
             try:
                 os.unlink(temp_path)
