@@ -157,31 +157,31 @@ def run_dieharder_suite(bits, exhaustive=False):
             with os.fdopen(fd, 'wb') as f:
                 f.write(byte_data)
                 
-            tests_output = ""
-            if exhaustive:
-                result = subprocess.run(
-                    ['dieharder', '-a', '-g', '202', '-f', temp_path],
+        tests_output = ""
+        if exhaustive:
+            result = subprocess.run(
+                ['dieharder', '-a', '-g', '202', '-f', temp_path],
+                capture_output=True,
+                text=True,
+                timeout=180
+            )
+            tests_output = result.stdout
+            if "command not found" in result.stderr:
+                return {"error": "Dieharder not available in this environment."}
+        else:
+            curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
+            outputs = []
+            for test_num in curated_tests:
+                res = subprocess.run(
+                    ['dieharder', '-d', str(test_num), '-g', '202', '-f', temp_path],
                     capture_output=True,
                     text=True,
-                    timeout=180
+                    timeout=60
                 )
-                tests_output = result.stdout
-                if "command not found" in result.stderr:
+                outputs.append(res.stdout)
+                if "command not found" in res.stderr:
                     return {"error": "Dieharder not available in this environment."}
-            else:
-                curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
-                outputs = []
-                for test_num in curated_tests:
-                    res = subprocess.run(
-                        ['dieharder', '-d', str(test_num), '-g', '202', '-f', temp_path],
-                        capture_output=True,
-                        text=True,
-                        timeout=60
-                    )
-                    outputs.append(res.stdout)
-                    if "command not found" in res.stderr:
-                        return {"error": "Dieharder not available in this environment."}
-                tests_output = "\n".join(outputs)
+            tests_output = "\n".join(outputs)
         finally:
             try:
                 os.unlink(temp_path)
