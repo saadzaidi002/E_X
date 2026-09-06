@@ -135,7 +135,9 @@ def run_testu01_suite(bits):
 
 def run_dieharder_suite(bits, exhaustive=False):
     """
-    Runs the Dieharder test suite via subprocess using stdin.
+    Runs the Dieharder test suite via subprocess using a temporary file.
+    By using a file (-f) instead of stdin, Dieharder can natively rewind and recycle
+    data if the file is too small for a specific test, preventing premature EOF exits.
     """
     bits_array = np.asarray(bits, dtype=np.int8)
     
@@ -149,34 +151,43 @@ def run_dieharder_suite(bits, exhaustive=False):
     byte_data = np.packbits(bits_array).tobytes()
     
     try:
-        tests_output = ""
-        if exhaustive:
-            result = subprocess.run(
-                ['dieharder', '-a', '-g', '200'],
-                input=byte_data,
-                capture_output=True,
-                text=True,
-                timeout=180
-            )
-            tests_output = result.stdout
-            if "command not found" in result.stderr:
-                return {"error": "Dieharder not available in this environment."}
-        else:
-            curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
-            outputs = []
-            for test_num in curated_tests:
-                res = subprocess.run(
-                    ['dieharder', '-d', str(test_num), '-g', '200'],
-                    input=byte_data,
+        # Create a temporary binary file
+        fd, temp_path = tempfile.mkstemp(suffix=".bin")
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(byte_data)
+                
+            tests_output = ""
+            if exhaustive:
+                result = subprocess.run(
+                    ['dieharder', '-a', '-g', '202', '-f', temp_path],
                     capture_output=True,
                     text=True,
-                    timeout=60
+                    timeout=180
                 )
-                outputs.append(res.stdout)
-                if "command not found" in res.stderr:
+                tests_output = result.stdout
+                if "command not found" in result.stderr:
                     return {"error": "Dieharder not available in this environment."}
-            tests_output = "\n".join(outputs)
-        
+            else:
+                curated_tests = [0, 2, 3, 10, 12, 13, 14, 16]
+                outputs = []
+                for test_num in curated_tests:
+                    res = subprocess.run(
+                        ['dieharder', '-d', str(test_num), '-g', '202', '-f', temp_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+                    outputs.append(res.stdout)
+                    if "command not found" in res.stderr:
+                        return {"error": "Dieharder not available in this environment."}
+                tests_output = "\n".join(outputs)
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+            
         output = tests_output
         
         tests = []

@@ -19,7 +19,7 @@ function formatBytes(bytes: number) {
 const TEST_SUITES_CONFIG = [
   { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', isSlow: false, minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
   { id: 'testu01', name: 'TestU01 Suite', desc: 'SmallCrush (15 Tests)', isSlow: true, minBytes: 2000000, warning: 'Requires at least 2 MB (Current: {current_size}) for 32-bit word sample completeness.' },
-  { id: 'dieharder', name: 'Dieharder', desc: 'Advanced Test Battery', isSlow: true, minBytes: 13107200, warning: 'Requires at least 13 MB (Current: {current_size}) to run Marsaglia tests without data recycling/rewind.' },
+  { id: 'dieharder', name: 'Dieharder', desc: 'Advanced Test Battery', isSlow: true, minBytes: 125000, warning: 'Requires at least 125 KB (Current: {current_size}) to run Marsaglia tests.' },
   { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', isSlow: false, minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
   { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', isSlow: false, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
 ];
