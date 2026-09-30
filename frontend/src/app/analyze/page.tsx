@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { TerminalCard } from '@/components/TerminalCard';
@@ -18,10 +18,10 @@ function formatBytes(bytes: number) {
 
 const TEST_SUITES_CONFIG = [
   { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', isSlow: false, minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
-  { id: 'testu01', name: 'TestU01 Suite', desc: 'SmallCrush (15 Tests)', isSlow: true, minBytes: 2000000, warning: 'Requires at least 2 MB (Current: {current_size}) for 32-bit word sample completeness.' },
-  { id: 'dieharder', name: 'Dieharder', desc: 'Advanced Test Battery', isSlow: true, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) to run Marsaglia tests.' },
+  { id: 'testu01', name: 'TestU01 Suite', desc: 'Alphabit + Rabbit Batteries', isSlow: true, minBytes: 131072, warning: 'Requires at least 128 KB (Current: {current_size}). SmallCrush also runs on inputs over ~910 MB.' },
+  { id: 'dieharder', name: 'Dieharder', desc: '25 Reliable Tests, Standard Settings', isSlow: true, minBytes: 8388608, warning: 'Dieharder needs hundreds of MB for most tests (Current: {current_size}). Tests that would reuse data are reported as insufficient.' },
   { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', isSlow: false, minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
-  { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', isSlow: false, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
+  { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy â€¢ Min Entropy â€¢ Bias', isSlow: false, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
 ];
 
 export default function AnalyzePage() {
@@ -366,7 +366,7 @@ export default function AnalyzePage() {
               <div className="bg-white border border-quantum-cyan rounded-lg p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="flex h-8 w-8 items-center justify-center rounded-md bg-quantum-blue/10 text-quantum-blue">
-                    ★
+                    â˜…
                   </span>
                   <h3 className="text-xl font-bold text-quantum-navy">Optimal Method: {result.bestMethod}</h3>
                 </div>
@@ -403,8 +403,8 @@ export default function AnalyzePage() {
                           <td className="py-3 px-4 text-xs font-bold">{m.score.toFixed(1)}</td>
                           {selectedTests.has('nist') && <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/15</td>}
                           {selectedTests.has('compression') && <td className="py-3 px-4 text-xs font-bold">{m.compressionPass ?? 0}/4</td>}
-                          {selectedTests.has('testu01') && <td className="py-3 px-4 text-xs font-bold">{m.testu01Pass ?? 0}/15</td>}
-                          {selectedTests.has('dieharder') && <td className="py-3 px-4 text-xs font-bold">{m.dieharderPass ?? 0}/100</td>}
+                          {selectedTests.has('testu01') && <td className="py-3 px-4 text-xs font-bold">{m.testu01Total ? `${m.testu01Pass ?? 0}/${m.testu01Total}` : 'n/a'}</td>}
+                          {selectedTests.has('dieharder') && <td className="py-3 px-4 text-xs font-bold">{m.dieharderTotal ? `${m.dieharderPass ?? 0}/${m.dieharderTotal}` : 'n/a'}</td>}
                           {selectedTests.has('performance') && (
                             <>
                               <td className="py-3 px-4 text-xs font-bold">{m.shannon.toFixed(4)}</td>
@@ -578,7 +578,7 @@ export default function AnalyzePage() {
                           <div className="flex items-start gap-1.5 text-[10px] sm:text-[11px] font-bold text-red-600/90 bg-red-50/80 backdrop-blur-sm px-2.5 py-1.5 rounded-md shadow-sm border border-red-100/50 mt-0.5">
                             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                             <span className="leading-tight">
-                              ⚠️ Data size too small ({t.warning.replace('{current_size}', file ? formatBytes(file.size) : '0 Bytes')}) — Suite Disabled
+                              âš ï¸ Data size too small ({t.warning.replace('{current_size}', file ? formatBytes(file.size) : '0 Bytes')}) â€” Suite Disabled
                             </span>
                           </div>
                         )}

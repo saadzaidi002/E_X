@@ -7,3 +7,6 @@ Actual extraction method code/
 *.png
 *.jpg
 *.jpeg
+
+# TestU01 harness binary (built by backend/testu01/build.sh)
+backend/testu01/tu01_file

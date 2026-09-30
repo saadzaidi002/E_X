@@ -43,7 +43,9 @@ export interface AnalysisResult {
     bitRate: number;
     compressionPass?: number;
     testu01Pass?: number;
+    testu01Total?: number;
     dieharderPass?: number;
+    dieharderTotal?: number;
   }[];
 }
 

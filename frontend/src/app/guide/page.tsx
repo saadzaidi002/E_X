@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useState } from 'react';
 import { TerminalCard } from '@/components/TerminalCard';
 import { getLimits, Limits } from '@/lib/api';
@@ -124,13 +124,13 @@ export default function GuidePage() {
             </p>
             <ul className="list-disc ml-5 space-y-3 text-quantum-navy/80 text-sm">
               <li>
-                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is ≥ 0.999.
+                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is â‰¥ 0.999.
               </li>
               <li>
-                <strong className="text-quantum-navy">TestU01 SmallCrush:</strong> A robust C library of empirical statistical tests. The SmallCrush battery runs 15 distinct tests designed to find subtle patterns in uniform random number generators.
+                <strong className="text-quantum-navy">TestU01:</strong> The official TestU01 1.2.3 C library. The Alphabit (17 tests) and Rabbit (40 tests) batteries, designed for fixed-length bit files, run on up to 2<sup>25</sup> bits. SmallCrush (15 tests) reads about 908 MB, so it only runs on inputs large enough that no data is reused.
               </li>
               <li>
-                <strong className="text-quantum-navy">Dieharder:</strong> A comprehensive randomness testing suite. Note that Dieharder requires a substantial dataset (at least 1,000,000 bits) to produce meaningful results and may not be available in all local development environments.
+                <strong className="text-quantum-navy">Dieharder:</strong> The 25 tests Dieharder itself rates &quot;Good&quot; (excluding rgb_minimum_distance, which fails even Dieharder&apos;s built-in AES generator when run alone), at standard settings. Most tests read hundreds of MB; when an input is too short, Dieharder would silently rewind and retest the same data, so those tests are reported as insufficient instead of counted. Runs natively on Linux and through WSL on Windows.
               </li>
             </ul>
           </div>

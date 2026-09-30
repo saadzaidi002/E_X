@@ -1,8 +1,11 @@
 FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y \
+# TestU01 is packaged in Debian's non-free component.
+RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y \
     build-essential \
     dieharder \
+    libtestu01-0-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -14,6 +17,7 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Copy python files from root and backend
 COPY *.py ./
 COPY backend/ ./backend/
+RUN sh backend/testu01/build.sh
 
 # Expose port 7860 (Hugging Face Spaces default port)
 EXPOSE 7860

@@ -10,3 +10,5 @@ __pycache__
 *.pdf
 *.zip
 *.txt
+backend/venv_local
+backend/testu01/tu01_file

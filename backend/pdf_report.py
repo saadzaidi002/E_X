@@ -242,7 +242,7 @@ def generate_testu01_chart(data_points):
     ax.set_xlim(0, max_total)
     ax.grid(axis='x', linestyle='--', alpha=0.3)
     ax.legend(loc='lower center', bbox_to_anchor=(0.5, 1.02), ncol=2, frameon=False)
-    ax.set_title("TestU01 SmallCrush Pass Rate", fontsize=12, fontweight='bold', pad=30)
+    ax.set_title("TestU01 (Alphabit + Rabbit) Results", fontsize=12, fontweight='bold', pad=30)
     return save_plot()
 
 def generate_dieharder_chart(data_points):
@@ -366,7 +366,7 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
     if 'nist' in selected_tests:
         summary_parts.append("passing the NIST SP 800-22 statistical test suite")
     if 'testu01' in selected_tests:
-        summary_parts.append("passing the TestU01 SmallCrush suite")
+        summary_parts.append("passing the TestU01 Alphabit and Rabbit batteries")
     if 'dieharder' in selected_tests:
         summary_parts.append("passing the Dieharder test suite")
     if 'compression' in selected_tests:
@@ -400,7 +400,7 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
     if 'compression' in selected_tests:
         methodology_lines.append("<b>Compression Viability:</b> Evaluates if the output can be compressed by standard algorithms like zlib, lzma, bzip2, and gzip. Truly random data cannot be compressed efficiently.")
     if 'testu01' in selected_tests:
-        methodology_lines.append("<b>TestU01 (SmallCrush):</b> A battery of empirical statistical tests for uniform random number generators.")
+        methodology_lines.append("<b>TestU01 1.2.3 (Alphabit + Rabbit):</b> The official TestU01 batteries designed for fixed-length bit sequences. SmallCrush runs only on inputs large enough (~908 MB) that no data is reused.")
     if 'dieharder' in selected_tests:
         methodology_lines.append("<b>Dieharder Test Suite:</b> An advanced suite of rigorous statistical tests designed to push random number generators to their limits.")
         
@@ -455,9 +455,9 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
         
     # 7. TestU01
     if 'testu01' in selected_tests:
-        elements.append(Paragraph("TestU01 (SmallCrush)", h2_style))
+        elements.append(Paragraph("TestU01 (Alphabit + Rabbit)", h2_style))
         elements.append(Image(generate_testu01_chart(data_points), width=450, height=225))
-        elements.append(Paragraph("TestU01 is a software library offering empirical statistical tests for uniform random number generators. The SmallCrush battery is used here.", body_style))
+        elements.append(Paragraph("TestU01 is a software library offering empirical statistical tests for uniform random number generators. The Alphabit and Rabbit batteries, designed for finite bit files, are used here; p-values outside [0.001, 0.999] are flagged as suspect.", body_style))
         elements.append(PageBreak())
         
     # 8. Dieharder
@@ -491,10 +491,10 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
     table_data = [headers]
     for i, m in enumerate(ranked_methods):
         row = [str(i + 1), format_short_name(m['method']), f"{m['score']:.1f}"]
-        if 'nist' in cols_order: row.append(f"{m['nistPass']}/15")
+        if 'nist' in cols_order: row.append(f"{m['nistPass']}/16")
         if 'comp' in cols_order: row.append(f"{m.get('compressionPass', 0)}/4")
-        if 'u01' in cols_order: row.append(f"{m.get('testu01Pass', 0)}/15")
-        if 'die' in cols_order: row.append(f"{m.get('dieharderPass', 0)}/100")
+        if 'u01' in cols_order: row.append(f"{m.get('testu01Pass', 0)}/{m.get('testu01Total', 0)}" if m.get('testu01Total') else "n/a")
+        if 'die' in cols_order: row.append(f"{m.get('dieharderPass', 0)}/{m.get('dieharderTotal', 0)}" if m.get('dieharderTotal') else "n/a")
         if 'performance' in selected_tests:
             row.extend([
                 f"{m['shannon']:.4f}",

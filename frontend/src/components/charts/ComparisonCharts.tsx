@@ -300,14 +300,17 @@ export function CompressionChart({ data }: ChartProps) {
 }
 
 export function TestU01Chart({ data }: ChartProps) {
+  // Placeholder bar height for inputs with no result: the largest real test count.
+  const maxTotal = Math.max(1, ...data.map(d => (d.testu01?.error ? 0 : d.testu01?.total || 0)));
   const processedData = data.map(d => {
-    const isInvalid = d.testu01?.error || (!d.testu01?.pass && !d.testu01?.fail);
+    const isInvalid = d.testu01?.error || !d.testu01?.total;
     return {
       method: d.method,
       pass: isInvalid ? 0 : d.testu01?.pass || 0,
+      weak: isInvalid ? 0 : d.testu01?.weak || 0,
       fail: isInvalid ? 0 : d.testu01?.fail || 0,
-      invalid: isInvalid ? 15 : 0,
-      total: 15
+      invalid: isInvalid ? maxTotal : 0,
+      total: isInvalid ? maxTotal : d.testu01?.total
     };
   });
   const sortedData = [...processedData].sort((a, b) => {
@@ -316,7 +319,7 @@ export function TestU01Chart({ data }: ChartProps) {
   });
 
   return (
-    <ChartWrapper title="TestU01 SmallCrush" data={sortedData as any}>
+    <ChartWrapper title="TestU01 (Alphabit + Rabbit)" data={sortedData as any}>
       <ResponsiveContainer width="99%" height="100%">
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
@@ -325,8 +328,9 @@ export function TestU01Chart({ data }: ChartProps) {
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
           <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
           <Bar dataKey="pass" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 4, 4]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="weak" name="Suspect" stackId="a" fill="#F39C12" radius={[0, 0, 0, 0]} animationBegin={0} animationDuration={800} />
           <Bar dataKey="fail" name="Fail" stackId="a" fill="#c0392b" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
-          <Bar dataKey="invalid" name="Unavailable / Missing Lib" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar dataKey="invalid" name="Insufficient Data / Unavailable" stackId="a" fill="#95a5a6" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
         </BarChart>
       </ResponsiveContainer>
     </ChartWrapper>
@@ -334,15 +338,18 @@ export function TestU01Chart({ data }: ChartProps) {
 }
 
 export function DieharderChart({ data }: ChartProps) {
+  // Tests Dieharder could not run without reusing (rewinding) the input count as insufficient.
   const processedData = data.map(d => {
-    const isInvalid = d.dieharder?.error || d.dieharder?.insufficient || (!d.dieharder?.pass && !d.dieharder?.fail && !d.dieharder?.weak);
+    const dh = d.dieharder || {};
+    const skipped = dh.insufficient_tests?.length || 0;
+    const hasResults = !dh.error && !!dh.total;
     return {
       method: d.method,
-      pass: isInvalid ? 0 : d.dieharder?.pass || 0,
-      weak: isInvalid ? 0 : d.dieharder?.weak || 0,
-      fail: isInvalid ? 0 : d.dieharder?.fail || 0,
-      invalid: isInvalid ? 100 : 0,
-      total: 100
+      pass: hasResults ? dh.pass || 0 : 0,
+      weak: hasResults ? dh.weak || 0 : 0,
+      fail: hasResults ? dh.fail || 0 : 0,
+      invalid: hasResults ? skipped : Math.max(skipped, 1),
+      total: (hasResults ? dh.total : 0) + skipped
     };
   });
   const sortedData = [...processedData].sort((a, b) => {
