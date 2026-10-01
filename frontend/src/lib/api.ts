@@ -130,10 +130,35 @@ export async function analyzeFile(
   if (!startRes.ok) throw new Error(`Failed to start analysis job (${startRes.status})`);
   const { job_id } = JSON.parse(startRes.text);
 
+  // Jobs live in the server's memory. A 404 for a job that was just running means
+  // the server restarted (e.g. a new version was deployed) and the job is gone.
+  // Network errors and 5xx responses are what a restart looks like while it is in
+  // progress, so those are retried for a while before giving up.
+  const MAX_UNREACHABLE_MS = 3 * 60 * 1000;
+  let unreachableSince: number | null = null;
+
   while (true) {
-    const statusRes = await fetch(`${API_BASE}/api/analyze/status/${job_id}`);
-    if (!statusRes.ok) throw new Error('Failed to fetch job status');
-    
+    let statusRes: Response | null = null;
+    try {
+      statusRes = await fetch(`${API_BASE}/api/analyze/status/${job_id}`);
+    } catch {
+      statusRes = null;
+    }
+
+    if (statusRes && statusRes.status === 404) {
+      throw new Error('The analysis server restarted and this analysis was lost. Your file and selections are still here: click Execute Pipeline to run it again.');
+    }
+
+    if (!statusRes || !statusRes.ok) {
+      unreachableSince ??= Date.now();
+      if (Date.now() - unreachableSince > MAX_UNREACHABLE_MS) {
+        throw new Error('Lost connection to the analysis server for over 3 minutes. Check your internet connection, then click Execute Pipeline to run the analysis again.');
+      }
+      await new Promise(r => setTimeout(r, 3000));
+      continue;
+    }
+    unreachableSince = null;
+
     const statusData = await statusRes.json();
     
     if (onProgress && statusData.logs) {
