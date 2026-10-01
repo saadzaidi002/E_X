@@ -8,6 +8,8 @@ export interface Limits {
   maxFileSize: number; // bytes
   fastTierThreshold: number; // bytes
   message: string;
+  exportBinaryBytes?: number; // bytes of a binary file the bitstream export uses
+  exportTextBytes?: number; // same, for ASCII '0'/'1' text files
 }
 
 export interface ChartData {
@@ -127,16 +129,34 @@ export async function analyzeFile(
   }
 }
 
+// The export covers the analysis window at the start of the file, so only that
+// part is uploaded. Sending a whole 500 MB file again took minutes for nothing.
+async function exportSlice(file: File): Promise<Blob> {
+  const limits = await getLimits();
+  if (!limits.exportBinaryBytes || !limits.exportTextBytes) return file;
+  const head = new Uint8Array(await file.slice(0, 4096).arrayBuffer());
+  const isBit = (b: number) => b === 48 || b === 49;
+  const isText = head.length > 0 && head.some(isBit) &&
+    head.every(b => isBit(b) || b === 32 || b === 9 || b === 13 || b === 10 || b === 44);
+  return file.slice(0, isText ? limits.exportTextBytes : limits.exportBinaryBytes);
+}
+
 export async function downloadBitsZip(file: File, methods: string[]): Promise<void> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', await exportSlice(file), file.name);
   formData.append('methods', JSON.stringify(methods));
-  
+
   const res = await fetch(`${API_BASE}/api/download/bits`, {
     method: 'POST',
     body: formData,
   });
-  if (!res.ok) throw new Error('Failed to download');
+  if (!res.ok) {
+    let errorMsg = 'Failed to export bitstreams';
+    try {
+      errorMsg += ` - ${res.status}: ${(await res.text()).substring(0, 100)}`;
+    } catch (e) {}
+    throw new Error(errorMsg);
+  }
   const blob = await res.blob();
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');

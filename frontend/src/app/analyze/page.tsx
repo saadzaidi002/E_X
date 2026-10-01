@@ -203,6 +203,9 @@ export default function AnalyzePage() {
     try {
       await downloadBitsZip(file, Array.from(selectedMethods));
       showToast('Extracted bitstreams downloaded successfully.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Error exporting bitstreams: ' + (err.message || 'Check browser console or mixed-content settings.'));
     } finally {
       setDownloadingZip(false);
     }

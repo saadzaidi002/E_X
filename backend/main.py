@@ -72,6 +72,10 @@ def get_limits():
     return {
         "maxFileSize": MAX_FILE_SIZE,
         "fastTierThreshold": FAST_TIER_THRESHOLD,
+        # Bitstream export covers the analysis window, so clients only need to
+        # upload this many bytes of the file (binary / ASCII '0'-'1' text).
+        "exportBinaryBytes": upload_bytes_needed(False, MAX_ANALYSIS_BITS),
+        "exportTextBytes": upload_bytes_needed(True, MAX_ANALYSIS_BITS),
         "message": f"Warning: Executing the 5 O(n²) methods (LHL, Goldreich-Levin, Chor-Goldreich, Trevisan, Quantum-Proof) on files > {FAST_TIER_THRESHOLD} bits will result in extreme analysis times. User assumes full responsibility for long waits."
     }
 
@@ -167,13 +171,19 @@ def run_deep_suites(name: str, src_path: str, is_text: bool, selected_tests: lis
                 pass
     return name, tu01, dh, time.time() - start
 
-async def read_upload(file: UploadFile, max_bits: int):
-    """Read only as many bytes as the analysis will use. Returns (content, file_size_bytes)."""
-    head = await file.read(4096)
-    need = max_bits + max_bits // 4 if is_text_bits(head) else (max_bits + 7) // 8
-    rest = await file.read(max(0, need - len(head)))
-    size = file.size if file.size is not None else len(head) + len(rest)
-    return head + rest, size
+def upload_bytes_needed(is_text: bool, max_bits: int) -> int:
+    """Bytes of a file that hold max_bits bits (text files get 25% slack for separators)."""
+    return max_bits + max_bits // 4 if is_text else (max_bits + 7) // 8
+
+def read_window(fileobj, max_bits: int) -> bytes:
+    """Read only as many bytes as hold the first max_bits bits."""
+    head = fileobj.read(4096)
+    need = upload_bytes_needed(is_text_bits(head), max_bits)
+    return head + fileobj.read(max(0, need - len(head)))
+
+def bits_to_ascii(bits) -> bytes:
+    """'0'/'1' text for a bit array (vectorized; str() per bit takes minutes on large inputs)."""
+    return (np.asarray(bits, dtype=np.uint8) + 48).tobytes()
 
 def analyze_single_method(name, input_bits, selected_tests, total_bits, MAX_STAT_BITS):
     func = METHODS_DICT.get(name)
@@ -234,10 +244,9 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
         jobs[job_id]["logs"].append("Processing file content...")
         file_size = os.path.getsize(upload_path)
         with open(upload_path, "rb") as f:
-            head = f.read(4096)
-            is_text = is_text_bits(head)
-            need = MAX_ANALYSIS_BITS + MAX_ANALYSIS_BITS // 4 if is_text else (MAX_ANALYSIS_BITS + 7) // 8
-            content = head + f.read(max(0, need - len(head)))
+            is_text = is_text_bits(f.read(4096))
+            f.seek(0)
+            content = read_window(f, MAX_ANALYSIS_BITS)
         input_bits = process_file_content(content, MAX_ANALYSIS_BITS)
         del content
         total_bits = len(input_bits)
@@ -456,33 +465,37 @@ def get_analyze_status(job_id: str):
 import tempfile
 from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 
+# Plain "def": FastAPI runs it in a worker thread, so building the archive does
+# not freeze the event loop (status polling and other requests keep working).
 @app.post("/api/download/bits")
-async def download_bits(
+def download_bits(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    methods: str = Form(...) 
+    methods: str = Form(...)
 ):
     selected_method_names = json.loads(methods)
-    content, _ = await read_upload(file, MAX_ANALYSIS_BITS)
+    content = read_window(file.file, MAX_ANALYSIS_BITS)
     input_bits = process_file_content(content, MAX_ANALYSIS_BITS)
-    
+    del content
+
     fd, temp_path = tempfile.mkstemp(suffix=".zip")
     os.close(fd)
-    
-    with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED, False) as zip_file:
-        zip_file.writestr("Raw_Baseline.txt", "".join(map(str, input_bits.tolist())))
+
+    # '0'/'1' text deflates to ~1 bit per character at any level; level 1 is several times faster.
+    with zipfile.ZipFile(temp_path, "w", zipfile.ZIP_DEFLATED, False, compresslevel=1) as zip_file:
+        zip_file.writestr("Raw_Baseline.txt", bits_to_ascii(input_bits))
         for name in selected_method_names:
             func = METHODS_DICT.get(name)
             if func:
+                clean_name = "".join(c if c.isalnum() else "_" for c in name)
                 try:
                     extracted = func(input_bits)
-                    clean_name = "".join(c if c.isalnum() else "_" for c in name)
-                    zip_file.writestr(f"{clean_name}.txt", "".join(map(str, extracted.tolist())))
+                    zip_file.writestr(f"{clean_name}.txt", bits_to_ascii(extracted))
                     del extracted
                     gc.collect()
-                except Exception:
-                    pass
-    
+                except Exception as e:
+                    zip_file.writestr(f"{clean_name}_ERROR.txt", f"Extraction failed: {e}")
+
     del input_bits
     gc.collect()
     
