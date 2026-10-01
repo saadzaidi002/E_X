@@ -88,23 +88,47 @@ export async function getLimits(): Promise<Limits> {
   return res.json();
 }
 
+export interface UploadProgress {
+  loaded: number; // bytes sent so far
+  total: number; // bytes to send
+}
+
+// fetch() cannot report upload progress, so the upload goes through XMLHttpRequest.
+function postWithUploadProgress(
+  url: string,
+  body: FormData,
+  onUploadProgress?: (p: UploadProgress) => void
+): Promise<{ ok: boolean; status: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    if (onUploadProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onUploadProgress({ loaded: e.loaded, total: e.total });
+      };
+    }
+    xhr.onload = () => resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, text: xhr.responseText });
+    xhr.onerror = () => reject(new Error('Upload failed: could not reach the analysis server.'));
+    xhr.onabort = () => reject(new Error('Upload was cancelled.'));
+    xhr.send(body);
+  });
+}
+
 export async function analyzeFile(
-  file: File, 
-  methods: string[], 
+  file: File,
+  methods: string[],
   tests: string[],
-  onProgress?: (logs: string[]) => void
+  onProgress?: (logs: string[]) => void,
+  onUploadProgress?: (p: UploadProgress) => void
 ): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
   formData.append('tests', JSON.stringify(tests));
-  
-  const startRes = await fetch(`${API_BASE}/api/analyze/start`, {
-    method: 'POST',
-    body: formData,
-  });
-  if (!startRes.ok) throw new Error('Failed to start analysis job');
-  const { job_id } = await startRes.json();
+
+  const startRes = await postWithUploadProgress(`${API_BASE}/api/analyze/start`, formData, onUploadProgress);
+  if (!startRes.ok) throw new Error(`Failed to start analysis job (${startRes.status})`);
+  const { job_id } = JSON.parse(startRes.text);
 
   while (true) {
     const statusRes = await fetch(`${API_BASE}/api/analyze/status/${job_id}`);

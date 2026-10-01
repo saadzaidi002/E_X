@@ -3,10 +3,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { TerminalCard } from '@/components/TerminalCard';
 import { TerminalButton } from '@/components/TerminalButton';
-import { getMethods, getLimits, analyzeFile, downloadBitsZip, downloadPdfReport, Method, Limits, AnalysisResult } from '@/lib/api';
+import { getMethods, getLimits, analyzeFile, downloadBitsZip, downloadPdfReport, Method, Limits, AnalysisResult, UploadProgress } from '@/lib/api';
 import { EntropyChart, BitRateChart, BiasChart, NistComplianceChart, EfficiencyChart, CompressionChart, TestU01Chart, DieharderChart } from '@/components/charts/ComparisonCharts';
 import { Upload, Play, Download, FileText, Check, AlertTriangle, Loader2, Binary, CheckCircle2 } from 'lucide-react';
 import { useAnalysis } from '@/lib/AnalysisContext';
+
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '';
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return s ? `${m} min ${s} s` : `${m} min`;
+}
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 Bytes';
@@ -51,6 +59,7 @@ export default function AnalyzePage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [toast, setToast] = useState('');
+  const [upload, setUpload] = useState<(UploadProgress & { speed: number }) | null>(null);
 
   const [isFetching, setIsFetching] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
@@ -152,6 +161,8 @@ export default function AnalyzePage() {
     if (!file) return;
     setStatus('analyzing');
     setErrorMsg('');
+    const uploadStartedAt = Date.now();
+    setUpload({ loaded: 0, total: file.size, speed: 0 });
     const getTime = () => new Date().toISOString().split('T')[1].substring(0, 8);
     setAnalysisLogs([
       { time: getTime(), msg: `Loaded ${file.name} ( ${(file.size / 1024).toFixed(1)} KB )` },
@@ -173,6 +184,10 @@ export default function AnalyzePage() {
             setAnalysisLogs(prev => [...prev, ...newLogs]);
             logIndex = logs.length;
           }
+        },
+        (p: UploadProgress) => {
+          const elapsed = (Date.now() - uploadStartedAt) / 1000;
+          setUpload({ loaded: p.loaded, total: p.total, speed: elapsed > 0.5 ? p.loaded / elapsed : 0 });
         }
       );
       setResult(res);
@@ -180,8 +195,14 @@ export default function AnalyzePage() {
     } catch (err: any) {
       setStatus('error');
       setErrorMsg(err.message || 'An unknown error occurred during analysis.');
+    } finally {
+      setUpload(null);
     }
   };
+
+  const uploading = !!upload && upload.loaded < upload.total;
+  const uploadPercent = upload && upload.total > 0 ? Math.min(100, Math.floor((upload.loaded / upload.total) * 100)) : 0;
+  const uploadSpeed = upload?.speed ?? 0;
 
   const handleDownloadZip = async () => {
     if (!result || !file) return;
@@ -241,8 +262,40 @@ export default function AnalyzePage() {
           <div className="space-y-4 min-h-[200px] flex flex-col">
             <div className="flex items-center gap-3 text-quantum-blue mb-2">
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="font-bold text-sm">Processing batch...</span>
+              <span className="font-bold text-sm">{uploading ? 'Uploading file...' : 'Processing batch...'}</span>
             </div>
+            {/* The server only starts logging once the whole file has arrived, so
+                without this the page looks frozen for the length of the upload. */}
+            {upload && upload.total > 0 && (uploading || analysisLogs.length <= 2) && (
+              <div className="rounded-lg border border-quantum-light bg-quantum-light/10 p-3 sm:p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm font-semibold text-quantum-navy">
+                  <span>{uploading ? 'Uploading to server' : 'Upload complete'}</span>
+                  <span className="tabular-nums">
+                    {formatBytes(upload.loaded)} / {formatBytes(upload.total)} ({uploadPercent}%)
+                  </span>
+                </div>
+                <div
+                  className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-quantum-light/40"
+                  role="progressbar"
+                  aria-label="File upload progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={uploadPercent}
+                >
+                  <div
+                    className="h-full rounded-full bg-quantum-blue transition-[width] duration-300 ease-out"
+                    style={{ width: `${uploadPercent}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs font-semibold text-quantum-navy/60 tabular-nums">
+                  {uploading
+                    ? (uploadSpeed > 0
+                        ? `${formatBytes(uploadSpeed)}/s, about ${formatDuration((upload.total - upload.loaded) / uploadSpeed)} left`
+                        : 'Starting upload...')
+                    : 'Waiting for the server to start the analysis...'}
+                </p>
+              </div>
+            )}
             {analysisLogs.map((log, i) => (
               <p key={i} className={`text-sm font-sans font-semibold ${i === analysisLogs.length - 1 ? 'text-quantum-navy' : 'text-quantum-blue/70'}`}>
                 <span className="text-quantum-light font-bold mr-2">{log.time}</span>
