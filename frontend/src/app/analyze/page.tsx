@@ -25,11 +25,11 @@ function formatBytes(bytes: number) {
 }
 
 const TEST_SUITES_CONFIG = [
-  { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', isSlow: false, minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
-  { id: 'testu01', name: 'TestU01 Suite', desc: 'Alphabit + Rabbit Batteries', isSlow: true, minBytes: 131072, warning: 'Requires at least 128 KB (Current: {current_size}). SmallCrush also runs on inputs over ~910 MB.' },
-  { id: 'dieharder', name: 'Dieharder', desc: '25 Reliable Tests, Standard Settings', isSlow: true, minBytes: 8388608, warning: 'Dieharder needs hundreds of MB for most tests (Current: {current_size}). Tests that would reuse data are reported as insufficient.' },
-  { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', isSlow: false, minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
-  { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', isSlow: false, minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
+  { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
+  { id: 'testu01', name: 'TestU01 Suite', desc: 'Alphabit + Rabbit Batteries', minBytes: 131072, warning: 'Requires at least 128 KB (Current: {current_size}). SmallCrush also runs on inputs over ~910 MB.' },
+  { id: 'dieharder', name: 'Dieharder', desc: '25 Reliable Tests, Standard Settings', minBytes: 8388608, warning: 'Dieharder needs hundreds of MB for most tests (Current: {current_size}). Tests that would reuse data are reported as insufficient.' },
+  { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
+  { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
 ];
 
 export default function AnalyzePage() {
@@ -559,13 +559,7 @@ const isSelected = selectedMethods.has(m.id);
                                 {t.desc}
                               </p>
                             </div>
-                            {t.isSlow && (
-                              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-orange-700 bg-orange-100/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm ml-2 flex-shrink-0" title="This test scales poorly on large inputs">
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                                <span>Slow</span>
-                              </div>
-                            )}
-                          </div>
+</div>
                         </div>
                         {isDisabled && (
                           <div className="flex items-start gap-1.5 text-[10px] sm:text-[11px] font-bold text-red-600/90 bg-red-50/80 backdrop-blur-sm px-2.5 py-1.5 rounded-md shadow-sm border border-red-100/50 mt-0.5">
