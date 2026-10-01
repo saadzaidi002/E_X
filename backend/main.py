@@ -38,13 +38,9 @@ def read_root():
 METHODS = Extractors.get_all_extractors()
 METHODS_DICT = {name: func for name, func in METHODS}
 
-SLOW_METHODS = [
-    "2. Leftover Hash Lemma (LHL)",
-    "10. Goldreich–Levin Extractor",
-    "11. Chor–Goldreich 2-Source",
-    "15. Trevisan Extractor",
-    "17. Quantum-Proof Strong Extractor"
-]
+# No extractor is slow any more: the matrix-based ones that used to be listed
+# here run in well under a second on the full analysis window.
+SLOW_METHODS = []
 MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024 # 5GB
 FAST_TIER_THRESHOLD = 50000
 # Bits are held as one int8 per bit and copied into each worker process, so a
@@ -76,7 +72,7 @@ def get_limits():
         # upload this many bytes of the file (binary / ASCII '0'-'1' text).
         "exportBinaryBytes": upload_bytes_needed(False, MAX_ANALYSIS_BITS),
         "exportTextBytes": upload_bytes_needed(True, MAX_ANALYSIS_BITS),
-        "message": f"Warning: Executing the 5 O(n²) methods (LHL, Goldreich-Levin, Chor-Goldreich, Trevisan, Quantum-Proof) on files > {FAST_TIER_THRESHOLD} bits will result in extreme analysis times. User assumes full responsibility for long waits."
+        "message": ""
     }
 
 MIN_BITS_MAP = {

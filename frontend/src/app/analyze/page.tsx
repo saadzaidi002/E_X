@@ -51,7 +51,6 @@ export default function AnalyzePage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [toast, setToast] = useState('');
-  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
@@ -120,10 +119,7 @@ export default function AnalyzePage() {
     maxFiles: 1
   });
 
-  const isInputLarge = file && limits && file.size > limits.fastTierThreshold;
-
-  const handleToggleMethod = (id: string, isFast: boolean) => {
-
+  const handleToggleMethod = (id: string) => {
     setSelectedMethods(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -149,21 +145,11 @@ export default function AnalyzePage() {
       return;
     }
 
-    const hasSlowMethods = Array.from(selectedMethods).some(id => {
-      const m = methods.find(method => method.id === id);
-      return m && !m.isFast;
-    });
-
-    if (isInputLarge && hasSlowMethods) {
-      setShowConfirmation(true);
-    } else {
-      executeAnalysis();
-    }
+    executeAnalysis();
   };
 
   const executeAnalysis = async () => {
     if (!file) return;
-    setShowConfirmation(false);
     setStatus('analyzing');
     setErrorMsg('');
     const getTime = () => new Date().toISOString().split('T')[1].substring(0, 8);
@@ -234,40 +220,7 @@ export default function AnalyzePage() {
         </div>
       )}
 
-      {showConfirmation && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl border border-orange-200">
-            <h2 className="text-xl font-bold text-quantum-navy mb-4 flex items-center gap-2">
-              <AlertTriangle className="text-orange-600" />
-              Performance Warning
-            </h2>
-            <div className="text-sm text-quantum-navy/80 mb-6 space-y-3">
-              <p>You have selected the following slow methods on a large input file:</p>
-              <ul className="list-disc ml-5 font-bold text-quantum-navy">
-                {Array.from(selectedMethods)
-                  .filter(id => !methods.find(m => m.id === id)?.isFast)
-                  .map(id => <li key={id}>{methods.find(m => m.id === id)?.name}</li>)}
-              </ul>
-              <p>
-                These methods scale poorly on larger inputs. Processing time could be <strong>significantly longer</strong> than the other methods (this may take several minutes or longer, and in extreme cases could time out).
-              </p>
-            </div>
-            <div className="flex justify-end gap-3">
-              <TerminalButton onClick={() => setShowConfirmation(false)} variant="secondary" className="px-4 py-2 text-sm">
-                Go Back
-              </TerminalButton>
-              <button 
-                onClick={executeAnalysis} 
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded font-bold text-sm transition-colors flex items-center gap-2"
-              >
-                Proceed Anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+<div className="space-y-8 animate-in fade-in duration-500 pb-12">
         <div className="border-b border-quantum-light pb-6">
           <h1 className="text-3xl font-sans font-bold text-quantum-navy">Analysis Pipeline</h1>
           <p className="text-quantum-blue font-semibold mt-2">Upload raw data, select extraction methods, and evaluate randomness.</p>
@@ -476,16 +429,7 @@ export default function AnalyzePage() {
 
           <div className="lg:col-span-2">
             <TerminalCard title="Extraction Algorithms">
-              {isInputLarge && (
-                <div className="mb-5 p-4 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 text-sm flex items-start shadow-sm font-medium">
-                  <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0 text-orange-600" />
-                  <span className="leading-relaxed">
-                    Input size exceeds fast-tier limit ({limits?.fastTierThreshold! >= 1024 * 1024 ? (limits?.fastTierThreshold! / 1024 / 1024).toFixed(1) + 'MB' : (limits?.fastTierThreshold! / 1024).toFixed(1) + 'KB'}). Quadratic-time methods will take significantly longer to process and may time out.
-                  </span>
-                </div>
-              )}
-              
-              <div className="flex gap-4 mb-4 pb-4 border-b border-quantum-light">
+<div className="flex gap-4 mb-4 pb-4 border-b border-quantum-light">
                 <button onClick={selectAll} className="text-xs font-bold text-quantum-blue hover:text-quantum-navy transition-colors">
                   Select All
                 </button>
@@ -507,12 +451,11 @@ export default function AnalyzePage() {
                   </div>
                 )}
                 {methods.map(m => {
-                  const isSlowWarning = isInputLarge && !m.isFast;
-                  const isSelected = selectedMethods.has(m.id);
+const isSelected = selectedMethods.has(m.id);
                   return (
                     <div 
                       key={m.id}
-                      onClick={() => handleToggleMethod(m.id, m.isFast)}
+                      onClick={() => handleToggleMethod(m.id)}
                       className={`group flex items-center justify-between p-3.5 sm:p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 ease-out ${isSelected ? 'border-quantum-blue bg-gradient-to-r from-quantum-blue/10 to-transparent shadow-md shadow-quantum-blue/10 transform scale-[1.02]' : 'border-quantum-light/40 bg-white hover:border-quantum-cyan hover:shadow-md hover:-translate-y-0.5'}`}
                     >
                       <div className="flex items-center gap-3.5 flex-1 min-w-0">
@@ -525,13 +468,7 @@ export default function AnalyzePage() {
                           </p>
                         </div>
                       </div>
-                      {isSlowWarning && (
-                        <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-orange-700 bg-orange-100/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm ml-2 flex-shrink-0" title="This method scales poorly on large inputs">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          <span>Slow</span>
-                        </div>
-                      )}
-                    </div>
+</div>
                   );
                 })}
               </div>
@@ -569,7 +506,7 @@ export default function AnalyzePage() {
                                 {t.desc}
                               </p>
                             </div>
-                            {t.isSlow && isInputLarge && (
+                            {t.isSlow && (
                               <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-orange-700 bg-orange-100/80 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm ml-2 flex-shrink-0" title="This test scales poorly on large inputs">
                                 <AlertTriangle className="w-3.5 h-3.5" />
                                 <span>Slow</span>
