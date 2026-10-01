@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useEffect, useState } from 'react';
 import { TerminalCard } from '@/components/TerminalCard';
 import { getLimits, Limits } from '@/lib/api';
@@ -124,7 +124,7 @@ export default function GuidePage() {
             </p>
             <ul className="list-disc ml-5 space-y-3 text-quantum-navy/80 text-sm">
               <li>
-                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is â‰¥ 0.999.
+                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is ≥ 0.999.
               </li>
               <li>
                 <strong className="text-quantum-navy">TestU01:</strong> The official TestU01 1.2.3 C library. The Alphabit (17 tests) and Rabbit (40 tests) batteries, designed for fixed-length bit files, run on up to 2<sup>25</sup> bits. SmallCrush (15 tests) reads about 908 MB, so it only runs on inputs large enough that no data is reused.
