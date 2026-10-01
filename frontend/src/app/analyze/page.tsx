@@ -410,7 +410,7 @@ export default function AnalyzePage() {
                           <td className="py-3 px-4 text-xs font-bold">{i + 1}</td>
                           <td className={`py-3 px-4 font-bold ${i === 0 ? 'text-quantum-blue' : 'text-quantum-navy'}`}>{m.method.replace(/^\d+\.\s+/, '')}</td>
                           <td className="py-3 px-4 text-xs font-bold">{m.score.toFixed(1)}</td>
-                          {selectedTests.has('nist') && <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/15</td>}
+                          {selectedTests.has('nist') && <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/16</td>}
                           {selectedTests.has('compression') && <td className="py-3 px-4 text-xs font-bold">{m.compressionPass ?? 0}/4</td>}
                           {selectedTests.has('testu01') && <td className="py-3 px-4 text-xs font-bold">{m.testu01Total ? `${m.testu01Pass ?? 0}/${m.testu01Total}` : 'n/a'}</td>}
                           {selectedTests.has('dieharder') && <td className="py-3 px-4 text-xs font-bold">{m.dieharderTotal ? `${m.dieharderPass ?? 0}/${m.dieharderTotal}` : 'n/a'}</td>}

@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File, Form, Body, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import time
 import math
 import numpy as np
@@ -514,6 +514,7 @@ class PDFRequest(BaseModel):
     rankedMethods: List[Dict[str, Any]]
     totalBits: int
     selectedTests: List[str] = []
+    fileSizeBytes: Optional[int] = None
 
 @app.post("/api/download/pdf")
 async def download_pdf(request: PDFRequest):
@@ -525,7 +526,6 @@ async def download_pdf(request: PDFRequest):
         elif obj is None:
             return 0
         return obj
-    print("DEBUG DOWNLOAD PDF SELECTED TESTS:", request.selectedTests)
 
     safe_chart = replace_none(request.chartData)
     safe_ranked = replace_none(request.rankedMethods)
@@ -548,7 +548,7 @@ async def download_pdf(request: PDFRequest):
             "dieharder": d.get("dieharder", {})
         })
     
-    pdf_buffer = generate_pdf_report(data_points, request.totalBits, safe_ranked, request.selectedTests)
+    pdf_buffer = generate_pdf_report(data_points, request.totalBits, safe_ranked, request.selectedTests, request.fileSizeBytes)
     
     return StreamingResponse(
         pdf_buffer,

@@ -34,12 +34,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const formatShortName = (name: string) => {
-  let short = name.replace(/^\d+\.\s*/, '');
+  let short = name.replace(/\u2013/g, '-').replace(/^\d+\.\s*/, '');
   short = short.replace(/Extractor|Extraction|Method|Hash|Matrix/ig, '').trim();
   if (short.includes('Leftover Hash Lemma')) return 'LHL';
   if (short.includes('Quantum-Proof Strong')) return 'Quantum';
   if (short.includes('Goldreich-Levin')) return 'Goldreich-L.';
   if (short.includes('Chor-Goldreich')) return 'Chor-G.';
+  if (short.includes('Juels-Wattenberg')) return 'Juels-W.';
+  if (short.includes('Hadamard')) return 'Hadamard';
+  if (short.includes('Modular Arithmetic')) return 'Modular';
+  if (short.includes('Toeplitz')) return 'Toeplitz';
+  if (short.includes('Elias')) return 'Elias';
+  if (short.includes('Bit-Shuffling')) return 'Bit-Shuffle';
   if (short.includes('Von Neumann')) return 'Von Neumann';
   if (short.includes('Arithmetic Coding')) return 'Arithmetic';
   if (short.includes('LFSR-Based')) return 'LFSR';
@@ -231,17 +237,20 @@ export function EntropyChart({ data }: ChartProps) {
   );
 }
 
+const RAW_METHOD = 'Raw (Baseline)';
+
 export function BitRateChart({ data }: ChartProps) {
   const animate = useEntryAnimation();
+  const extracted = data.filter(d => d.method !== RAW_METHOD).map(d => ({ ...d, mbps: (d.bitRate || 0) / 1e6 }));
   return (
-    <ChartWrapper title="Throughput (Bits Per Second)" data={data}>
+    <ChartWrapper title="Throughput (Megabits Per Second)" data={extracted}>
       <ResponsiveContainer width="99%" height="100%">
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 10, bottom: 45 }}>
+        <BarChart data={extracted} margin={{ top: 20, right: 30, left: 10, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
-          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} tickFormatter={(val) => (val/1000) + 'k'} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} tickFormatter={(val) => Number(val).toLocaleString(undefined, { maximumFractionDigits: 1 })} />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
-          <Bar isAnimationActive={animate} dataKey="bitRate" name="Bit Rate (bps)" fill="#00B4D8" radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
+          <Bar isAnimationActive={animate} dataKey="mbps" name="Throughput (Mbps)" fill="#00B4D8"radius={[4, 4, 0, 0]} animationBegin={0} animationDuration={800} />
         </BarChart>
       </ResponsiveContainer>
     </ChartWrapper>
@@ -314,7 +323,7 @@ export function NistComplianceChart({ data }: ChartProps) {
 
 export function EfficiencyChart({ data }: ChartProps) {
   const animate = useEntryAnimation();
-  const processedData = data.map(d => ({
+  const processedData = data.filter(d => d.method !== RAW_METHOD).map(d => ({
     ...d,
     executionTime: Math.max(d.executionTime || 0.1, 0.1)
   }));

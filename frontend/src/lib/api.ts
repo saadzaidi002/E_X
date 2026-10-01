@@ -34,6 +34,7 @@ export interface AnalysisResult {
   bestMethod: string;
   bestMethodExplanation: string;
   totalBits: number;
+  fileSizeBytes?: number | null;
   chartData: ChartData[];
   rankedMethods: {
     method: string;
@@ -228,6 +229,7 @@ export async function downloadPdfReport(analysisData: AnalysisResult, selectedTe
       chartData: analysisData.chartData,
       rankedMethods: analysisData.rankedMethods,
       totalBits: analysisData.totalBits || 0,
+      fileSizeBytes: analysisData.fileSizeBytes ?? null,
       selectedTests: Array.from(selectedTests),
     }),
   });
