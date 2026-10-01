@@ -4,11 +4,23 @@ import React, { useEffect, useState } from 'react';
 export function CustomCursor() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isPointer, setIsPointer] = useState(false);
+  // Browsers send no mousemove events while a native scrollbar is being
+  // dragged, so the custom cursor would freeze where the drag began (and the
+  // real one is hidden). For the length of the drag, fall back to the native cursor.
+  const [nativeFallback, setNativeFallback] = useState(false);
 
   useEffect(() => {
+    const setNativeCursor = (on: boolean) => {
+      document.documentElement.classList.toggle('native-cursor', on);
+      setNativeFallback(on);
+    };
+
     const updatePosition = (e: MouseEvent) => {
       // Don't show custom cursor on touch devices
       if (window.matchMedia("(hover: none) and (pointer: coarse)").matches) return;
+
+      // Mouse events are flowing again, so any scrollbar drag has ended.
+      if (document.documentElement.classList.contains('native-cursor')) setNativeCursor(false);
 
       setPosition({ x: e.clientX, y: e.clientY });
       
@@ -22,9 +34,28 @@ export function CustomCursor() {
       );
     };
 
+    // A press that lands outside the target's content box (clientWidth/Height
+    // exclude scrollbars) is a press on its scrollbar.
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      const onScrollbar = target === document.documentElement
+        ? e.clientX >= target.clientWidth || e.clientY >= target.clientHeight
+        : e.clientX >= rect.left + target.clientLeft + target.clientWidth ||
+          e.clientY >= rect.top + target.clientTop + target.clientHeight;
+      if (onScrollbar) setNativeCursor(true);
+    };
+
     window.addEventListener('mousemove', updatePosition);
-    return () => window.removeEventListener('mousemove', updatePosition);
+    window.addEventListener('mousedown', onMouseDown, true);
+    return () => {
+      window.removeEventListener('mousemove', updatePosition);
+      window.removeEventListener('mousedown', onMouseDown, true);
+      document.documentElement.classList.remove('native-cursor');
+    };
   }, []);
+
+  if (nativeFallback) return null;
 
   return (
     <>

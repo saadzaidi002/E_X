@@ -20,6 +20,12 @@
   cursor: none !important; /* Hide default cursor everywhere */
 }
 
+/* Set by CustomCursor while a scrollbar is dragged (see CustomCursor.tsx) */
+html.native-cursor,
+html.native-cursor * {
+  cursor: auto !important;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
