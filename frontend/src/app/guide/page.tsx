@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { TerminalCard } from '@/components/TerminalCard';
 import { getLimits, Limits } from '@/lib/api';
-import { Binary, FileText } from 'lucide-react';
+import { Binary, Dices, FileArchive, FileText, FlaskConical } from 'lucide-react';
 
 const formatSize = (val: number, isBits: boolean) => {
   const bytes = isBits ? val / 8 : val;
@@ -10,6 +10,30 @@ const formatSize = (val: number, isBits: boolean) => {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
+
+const ADVANCED_SUITES = [
+  {
+    icon: FileArchive,
+    name: 'Compression Tests',
+    summary: 'Genuinely random data cannot be compressed.',
+    detail: 'Each output is compressed with four algorithms. A test passes when the compressed size stays at 99.9% of the original or more.',
+    facts: ['Zlib', 'LZMA', 'Bzip2', 'Gzip', 'Pass ratio \u2265 0.999'],
+  },
+  {
+    icon: FlaskConical,
+    name: 'TestU01',
+    summary: 'The official TestU01 1.2.3 C library.',
+    detail: 'The Alphabit and Rabbit batteries are designed for fixed-length bit files. SmallCrush reads about 908 MB, so it only runs on inputs large enough that no data is reused.',
+    facts: ['Alphabit: 17 tests', 'Rabbit: 40 tests', 'SmallCrush: 15 tests', 'Up to 33.5 million bits'],
+  },
+  {
+    icon: Dices,
+    name: 'Dieharder',
+    summary: 'The 25 tests Dieharder itself rates "Good", at standard settings.',
+    detail: 'Most tests read hundreds of MB. When an input is too short, Dieharder would silently rewind and retest the same data, so those tests are reported as insufficient instead of counted. rgb_minimum_distance is excluded: run alone, it fails even Dieharder\u2019s built-in AES generator.',
+    facts: ['25 tests', 'Standard settings', 'No reused data', 'Linux, or WSL on Windows'],
+  },
+];
 
 export default function GuidePage() {
   const [limits, setLimits] = useState<Limits | null>(null);
@@ -115,21 +139,32 @@ export default function GuidePage() {
         </TerminalCard>
 
         <TerminalCard delay={0.6} title="Advanced Randomness Testing">
-          <div className="space-y-6">
+          <div className="space-y-5">
             <p className="text-quantum-navy/80 font-medium leading-relaxed">
-              In addition to the standard NIST SP 800-22 tests, this system evaluates extractors using three advanced methods:
+              In addition to the standard NIST SP 800-22 tests, this system evaluates extractors using three advanced methods.
             </p>
-            <ul className="list-disc ml-5 space-y-3 text-quantum-navy/80 text-sm">
-              <li>
-                <strong className="text-quantum-navy">Compression Tests:</strong> Genuinely random data cannot be efficiently compressed. This evaluates the output using Zlib, LZMA, Bzip2, and Gzip. A passing ratio is ≥ 0.999.
-              </li>
-              <li>
-                <strong className="text-quantum-navy">TestU01:</strong> The official TestU01 1.2.3 C library. The Alphabit (17 tests) and Rabbit (40 tests) batteries, designed for fixed-length bit files, run on up to 2<sup>25</sup> bits. SmallCrush (15 tests) reads about 908 MB, so it only runs on inputs large enough that no data is reused.
-              </li>
-              <li>
-                <strong className="text-quantum-navy">Dieharder:</strong> The 25 tests Dieharder itself rates &quot;Good&quot; (excluding rgb_minimum_distance, which fails even Dieharder&apos;s built-in AES generator when run alone), at standard settings. Most tests read hundreds of MB; when an input is too short, Dieharder would silently rewind and retest the same data, so those tests are reported as insufficient instead of counted. Runs natively on Linux and through WSL on Windows.
-              </li>
-            </ul>
+
+            <div className="space-y-4">
+              {ADVANCED_SUITES.map(({ icon: Icon, name, summary, detail, facts }) => (
+                <div key={name} className="flex flex-col sm:flex-row gap-4 border border-quantum-light bg-white shadow-sm p-4 sm:p-5 rounded-xl hover:shadow-md hover:border-quantum-cyan/50 transition-all duration-300">
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-quantum-blue/10 rounded-lg text-quantum-blue">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-quantum-navy text-lg leading-tight">{name}</h3>
+                    <p className="text-sm text-quantum-navy/80 font-semibold mt-1">{summary}</p>
+                    <p className="text-sm text-quantum-navy/70 font-medium leading-relaxed mt-2">{detail}</p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {facts.map(fact => (
+                        <span key={fact} className="inline-block px-3 py-1 bg-quantum-light/25 text-quantum-navy/80 text-xs font-bold rounded-full">
+                          {fact}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </TerminalCard>
       </div>
