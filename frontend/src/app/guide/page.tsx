@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { TerminalCard } from '@/components/TerminalCard';
 import { getLimits, Limits } from '@/lib/api';
-import { AlertCircle, Binary, FileText } from 'lucide-react';
+import { Binary, FileText } from 'lucide-react';
 
 const formatSize = (val: number, isBits: boolean) => {
   const bytes = isBits ? val / 8 : val;
@@ -69,43 +69,40 @@ export default function GuidePage() {
             </div>
           ) : limits ? (
             <div className="space-y-6">
-              <div className="flex items-start gap-3 p-4 bg-quantum-light/20 border border-quantum-cyan rounded-lg text-sm text-quantum-navy font-bold">
-                <AlertCircle className="w-5 h-5 text-quantum-blue flex-shrink-0" />
-                <p>{limits.message}</p>
-              </div>
-              
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-quantum-cyan/50 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
-                    <h3 className="font-bold text-quantum-navy text-lg">Tier 1: Comprehensive Analysis</h3>
-                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">Input size &le; {formatSize(limits.fastTierThreshold, true)}</p>
+                    <h3 className="font-bold text-quantum-navy text-lg">Tier 1: Core Analysis</h3>
+                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">Input size &ge; 125 KB (1,000,000 bits)</p>
+                    <p className="text-xs text-quantum-navy/60 font-medium mt-1">Entropy, bias, NIST SP 800-22 and compression tests for every extractor, measured on the first {formatSize(limits.exportBinaryBytes ?? 8 * 1024 * 1024, false)} of the file.</p>
                   </div>
-                  <div className="sm:text-right flex sm:block items-center justify-between">
-                    <span className="inline-block px-4 py-1.5 bg-quantum-blue/10 text-quantum-blue text-xs font-bold rounded-full sm:mb-1.5">Optimal</span>
-                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: &lt; 30 secs</p>
+                  <div className="sm:text-right flex sm:block items-center justify-between flex-shrink-0 sm:ml-4">
+                    <span className="inline-block px-4 py-1.5 bg-quantum-blue/10 text-quantum-blue text-xs font-bold rounded-full sm:mb-1.5">All Files</span>
+                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: about 1 min</p>
                   </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-quantum-light/50 rounded-xl bg-white shadow-sm hover:shadow-md hover:border-orange-300/50 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
-                    <h3 className="font-bold text-quantum-navy text-lg">Tier 2: Fast Path Only</h3>
-                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">{formatSize(limits.fastTierThreshold, true)} &lt; Input &le; 5 GB</p>
+                    <h3 className="font-bold text-quantum-navy text-lg">Tier 2: TestU01 Batteries</h3>
+                    <p className="text-sm text-quantum-navy/70 font-medium mt-1">Input size &ge; 2 MB</p>
+                    <p className="text-xs text-quantum-navy/60 font-medium mt-1">Adds TestU01 Alphabit and Rabbit. Each extractor&apos;s output must reach 2<sup>20</sup> bits; smaller inputs leave low-yield extractors marked insufficient.</p>
                   </div>
-                  <div className="sm:text-right flex sm:block items-center justify-between">
-                    <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-xs font-bold rounded-full sm:mb-1.5">Restricted</span>
-                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: Varies by size</p>
+                  <div className="sm:text-right flex sm:block items-center justify-between flex-shrink-0 sm:ml-4">
+                    <span className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 text-xs font-bold rounded-full sm:mb-1.5">Deep Tests</span>
+                    <p className="text-xs text-quantum-navy/60 font-semibold">Est. Wait: a few mins</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
-                    <h3 className="font-bold text-purple-800 text-lg">Tier 3: Extended Processing</h3>
-                    <p className="text-sm text-purple-700 font-medium mt-1">Supports massive-scale datasets up to 5 GB</p>
-                    <p className="text-xs text-purple-600/80 font-medium mt-1">Processing will take significantly longer. User assumes responsibility for extended wait times.</p>
+                    <h3 className="font-bold text-purple-800 text-lg">Tier 3: Dieharder</h3>
+                    <p className="text-sm text-purple-700 font-medium mt-1">42 MB &le; Input &le; {formatSize(limits.maxFileSize, false)}</p>
+                    <p className="text-xs text-purple-600/80 font-medium mt-1">Adds Dieharder, run on the whole file for every extractor. The first tests need 42 MB; around 500 MB covers most of them. Tests that would have to reuse data are reported as insufficient.</p>
                   </div>
-                  <div className="sm:text-right flex sm:block items-center justify-between">
+                  <div className="sm:text-right flex sm:block items-center justify-between flex-shrink-0 sm:ml-4">
                     <span className="inline-block px-4 py-1.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full sm:mb-1.5">Heavy Load</span>
-                    <p className="text-xs text-purple-600/70 font-semibold">Est. Wait: 5+ mins</p>
+                    <p className="text-xs text-purple-600/70 font-semibold">Est. Wait: 10&ndash;30 mins at 500 MB</p>
                   </div>
                 </div>
               </div>
