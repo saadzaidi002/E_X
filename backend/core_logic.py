@@ -61,7 +61,11 @@ def run_nist_suite(bits):
         valid_p = [float(item) for item in result if not math.isnan(float(item))]
         if not valid_p:
             return float('nan')
-        return min(valid_p)
+        # These tests return one p-value per state (8, or 18 for the variant).
+        # Failing on the raw minimum fails good data ~9% of the time instead of
+        # 1%, so the minimum is Bonferroni-adjusted: the combined p-value is
+        # min(p) * number of states, which keeps the false-failure rate <= 1%.
+        return min(1.0, min(valid_p) * len(valid_p))
 
     def record_test(name, p_val):
         status = 'invalid'
