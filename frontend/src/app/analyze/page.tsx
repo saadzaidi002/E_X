@@ -540,6 +540,7 @@ export default function AnalyzePage() {
                   {result.deepOutputBytes ? ` TestU01 and Dieharder ran on the same ${formatBytes(result.deepOutputBytes)} of output for every method; methods that could not produce that much are listed but not ranked.` : ''}
                   {result.deepOutputBytes === 0 ? ' TestU01 and Dieharder ran on the full output of each method over the whole file, so the amount of data differs between methods: methods that keep less of their input have more tests skipped.' : ''}
                   {selectedTests.has('dieharder') ? ' Dieharder is scored out of all 114 tests of dieharder -a for every method; tests that would need more data than the tested output are skipped and count as not passed, rather than being run on reused data.' : ''}
+                  {selectedTests.has('performance') ? ' Throughput is the speed measured on the server that ran this analysis, so it varies between machines and between runs; it is shown for information and is not part of the score.' : ''}
                 </p>
               </TerminalCard>
             </div>
