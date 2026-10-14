@@ -9,6 +9,8 @@ export interface Limits {
   fastTierThreshold: number; // bytes
   message: string;
   exportBinaryBytes?: number; // bytes of a binary file the bitstream export uses
+  deepOutputOptions?: number[]; // output lengths (bytes) TestU01/Dieharder can test per method
+  defaultDeepBytes?: number;
   exportTextBytes?: number; // same, for ASCII '0'/'1' text files
 }
 
@@ -36,10 +38,18 @@ export interface AnalysisResult {
   totalBits: number;
   fileSizeBytes?: number | null;
   chartData: ChartData[];
-  rankedMethods: {
+  rankedMethods: RankedMethod[];
+  baseline?: RankedMethod | null; // raw input, scored the same way but not ranked
+  deepOutputBytes?: number | null; // output length every method was deep-tested on
+}
+
+export interface RankedMethod {
     method: string;
     score: number;
     nistPass: number;
+    nistFail?: number;
+    nistNa?: number;
+    nistTotal?: number;
     shannon: number;
     minEntropy: number;
     bias: number;
@@ -48,8 +58,13 @@ export interface AnalysisResult {
     testu01Pass?: number;
     testu01Total?: number;
     dieharderPass?: number;
+    dieharderWeak?: number;
+    dieharderFail?: number;
+    dieharderSkipped?: number;
     dieharderTotal?: number;
-  }[];
+    deepOutputBytes?: number | null;
+    excluded?: boolean; // could not produce the common output length: not ranked
+    excludedReason?: string | null;
 }
 
 const mockMethods: Method[] = [
@@ -120,12 +135,15 @@ export async function analyzeFile(
   methods: string[],
   tests: string[],
   onProgress?: (logs: string[]) => void,
-  onUploadProgress?: (p: UploadProgress) => void
+  onUploadProgress?: (p: UploadProgress) => void,
+  deepBytes?: number
 ): Promise<AnalysisResult> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('methods', JSON.stringify(methods));
   formData.append('tests', JSON.stringify(tests));
+  // 0 is meaningful (full output), so check for undefined rather than truthiness.
+  if (deepBytes !== undefined) formData.append('deepBytes', String(deepBytes));
 
   const startRes = await postWithUploadProgress(`${API_BASE}/api/analyze/start`, formData, onUploadProgress);
   if (!startRes.ok) throw new Error(`Failed to start analysis job (${startRes.status})`);
@@ -230,6 +248,8 @@ export async function downloadPdfReport(analysisData: AnalysisResult, selectedTe
       rankedMethods: analysisData.rankedMethods,
       totalBits: analysisData.totalBits || 0,
       fileSizeBytes: analysisData.fileSizeBytes ?? null,
+      baseline: analysisData.baseline ?? null,
+      deepOutputBytes: analysisData.deepOutputBytes ?? null,
       selectedTests: Array.from(selectedTests),
     }),
   });

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { TerminalCard } from '@/components/TerminalCard';
 import { TerminalButton } from '@/components/TerminalButton';
-import { getMethods, getLimits, analyzeFile, downloadBitsZip, downloadPdfReport, Method, Limits, AnalysisResult, UploadProgress } from '@/lib/api';
+import { getMethods, getLimits, analyzeFile, downloadBitsZip, downloadPdfReport, Method, Limits, AnalysisResult, UploadProgress, RankedMethod } from '@/lib/api';
 import { EntropyChart, BitRateChart, BiasChart, NistComplianceChart, EfficiencyChart, CompressionChart, TestU01Chart, DieharderChart } from '@/components/charts/ComparisonCharts';
 import { Upload, Play, Download, FileText, Check, AlertTriangle, Loader2, Binary, CheckCircle2 } from 'lucide-react';
 import { useAnalysis } from '@/lib/AnalysisContext';
@@ -14,6 +14,154 @@ function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = Math.round(seconds % 60);
   return s ? `${m} min ${s} s` : `${m} min`;
+}
+
+// Baseline first (not ranked), then ranked methods, then methods excluded for
+// producing too little output to be tested like the others.
+function rankingRows(result: AnalysisResult) {
+  const rows: { m: RankedMethod; rank: number; kind: 'baseline' | 'ranked' | 'excluded' }[] = [];
+  if (result.baseline) rows.push({ m: result.baseline, rank: 0, kind: 'baseline' });
+  let rank = 0;
+  for (const m of result.rankedMethods) {
+    if (m.excluded) rows.push({ m, rank: 0, kind: 'excluded' });
+    else rows.push({ m, rank: ++rank, kind: 'ranked' });
+  }
+  return rows;
+}
+
+type RowKind = 'baseline' | 'ranked' | 'excluded';
+type RankingColumn = {
+  key: string;
+  label: string;
+  weight: number; // share of the table width
+  align?: 'left' | 'right';
+  cell: (m: RankedMethod, kind: RowKind) => React.ReactNode;
+};
+
+const muted = (text: string) => <span className="font-semibold text-quantum-navy/50">{text}</span>;
+
+function rankingColumns(selectedTests: Set<string>): RankingColumn[] {
+  const notTested = muted('not tested');
+  const cols: RankingColumn[] = [];
+  if (selectedTests.has('nist')) cols.push({
+    key: 'nist', label: 'NIST', weight: 8,
+    cell: m => <>{m.nistPass}/{m.nistTotal ?? 16}{!!m.nistNa && <span className="block">{muted(`${m.nistNa} n/a`)}</span>}</>,
+  });
+  if (selectedTests.has('compression')) cols.push({ key: 'comp', label: 'Compress', weight: 7, cell: m => `${m.compressionPass ?? 0}/4` });
+  if (selectedTests.has('testu01')) cols.push({
+    key: 'u01', label: 'TestU01', weight: 7,
+    cell: m => m.excluded ? notTested : m.testu01Total ? `${m.testu01Pass ?? 0}/${m.testu01Total}` : 'n/a',
+  });
+  if (selectedTests.has('dieharder')) cols.push({
+    key: 'die', label: 'Dieharder', weight: 11,
+    cell: m => m.excluded ? notTested : m.dieharderTotal ? (
+      <>
+        {m.dieharderPass ?? 0}/{m.dieharderTotal}
+        <span className="block">
+          {muted([m.dieharderWeak ? `${m.dieharderWeak} weak` : '', m.dieharderFail ? `${m.dieharderFail} fail` : '', `${m.dieharderSkipped ?? 0} skipped`].filter(Boolean).join(', '))}
+        </span>
+      </>
+    ) : 'n/a',
+  });
+  if (selectedTests.has('performance')) cols.push(
+    { key: 'shannon', label: 'Shannon', weight: 7, cell: m => m.shannon.toFixed(4) },
+    { key: 'minent', label: 'Min Ent', weight: 7, cell: m => m.minEntropy.toFixed(4) },
+    { key: 'bias', label: 'Bias', weight: 7, cell: m => m.bias.toFixed(4) },
+    { key: 'thr', label: 'Throughput', weight: 9, align: 'right', cell: (m, kind) => kind === 'baseline'
+      ? <span title="The raw input is not run through an extractor, so there is no extraction time to measure.">{muted('n/a (not extracted)')}</span>
+      : `${(m.bitRate / 1e6).toFixed(1)} Mbps` },
+  );
+  return cols;
+}
+
+// Rankings that always fit their card: a fixed-layout table whose text scales with
+// the card's width (container query units), and below the width where 11 columns
+// stop being readable, one compact card per method instead. Nothing scrolls sideways.
+function RankingTable({ result, selectedTests }: { result: AnalysisResult; selectedTests: Set<string> }) {
+  const rows = rankingRows(result);
+  const cols = rankingColumns(selectedTests);
+  const fixed = [
+    { key: 'rank', label: 'Rank', weight: 5 },
+    { key: 'method', label: 'Method', weight: 20 },
+    { key: 'score', label: 'Score', weight: 6 },
+  ];
+  const totalWeight = [...fixed, ...cols].reduce((sum, c) => sum + c.weight, 0);
+  const pct = (w: number) => `${(100 * w / totalWeight).toFixed(2)}%`;
+  const name = (m: RankedMethod, kind: RowKind) => kind === 'baseline' ? 'Raw input (baseline, not ranked)' : m.method.replace(/^\d+\.\s+/, '');
+  const rowTone = (kind: RowKind, top: boolean) =>
+    `${top ? 'bg-quantum-blue/5' : ''} ${kind === 'baseline' ? 'bg-quantum-light/10' : ''}`;
+  const nameTone = (kind: RowKind, top: boolean) =>
+    top ? 'text-quantum-blue' : kind !== 'ranked' ? 'text-quantum-navy/60' : 'text-quantum-navy';
+
+  return (
+    <div className="@container">
+      {/* Wide: table. Font and padding scale with the card width (cqw), clamped to stay readable. */}
+      <table
+        className="hidden @[46rem]:table w-full table-fixed border-collapse text-left font-sans font-medium"
+        style={{ fontSize: 'clamp(0.66rem, 1.08cqw, 0.92rem)' }}
+      >
+        <colgroup>
+          {[...fixed, ...cols].map(c => <col key={c.key} style={{ width: pct(c.weight) }} />)}
+        </colgroup>
+        <thead>
+          <tr className="text-quantum-navy border-b border-quantum-light">
+            {[...fixed, ...cols].map(c => (
+              <th key={c.key} className={`py-[0.9em] px-[0.6em] font-bold leading-tight ${'align' in c && c.align === 'right' ? 'text-right' : ''}`}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="text-quantum-navy/80">
+          {rows.map(({ m, rank, kind }) => {
+            const top = kind === 'ranked' && rank === 1;
+            return (
+              <tr key={m.method} className={`border-b border-quantum-light/50 hover:bg-quantum-light/10 transition-colors align-top ${rowTone(kind, top)}`}>
+                <td className="py-[0.9em] px-[0.6em] font-bold">{kind === 'ranked' ? rank : '\u2014'}</td>
+                <td className={`py-[0.9em] px-[0.6em] font-bold leading-snug break-words ${nameTone(kind, top)}`}>
+                  {name(m, kind)}
+                  {kind === 'excluded' && <span className="block mt-0.5 text-[0.85em] font-semibold text-orange-700">Not ranked: {m.excludedReason}</span>}
+                </td>
+                <td className="py-[0.9em] px-[0.6em] font-bold">{kind === 'ranked' ? m.score.toFixed(1) : '\u2014'}</td>
+                {cols.map(c => (
+                  <td key={c.key} className={`py-[0.9em] px-[0.6em] font-bold leading-snug break-words ${c.align === 'right' ? 'text-right' : ''}`}>{c.cell(m, kind)}</td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Narrow: one card per method, values in a grid that reflows with the width. */}
+      <ol className="@[46rem]:hidden space-y-3">
+        {rows.map(({ m, rank, kind }) => {
+          const top = kind === 'ranked' && rank === 1;
+          return (
+            <li key={m.method} className={`rounded-lg border border-quantum-light/70 p-3 ${rowTone(kind, top)}`}>
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 min-w-[2rem] rounded-md bg-quantum-light/30 px-2 py-0.5 text-center text-xs font-bold text-quantum-navy">
+                  {kind === 'ranked' ? `#${rank}` : '\u2014'}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-bold leading-snug break-words ${nameTone(kind, top)}`}>{name(m, kind)}</p>
+                  {kind === 'excluded' && <p className="mt-0.5 text-xs font-semibold text-orange-700 break-words">Not ranked: {m.excludedReason}</p>}
+                </div>
+                <span className="flex-shrink-0 text-sm font-bold text-quantum-navy">{kind === 'ranked' ? m.score.toFixed(1) : '\u2014'}</span>
+              </div>
+              {cols.length > 0 && (
+                <dl className="mt-2.5 grid grid-cols-2 @[24rem]:grid-cols-3 @[34rem]:grid-cols-4 gap-x-3 gap-y-2 text-xs">
+                  {cols.map(c => (
+                    <div key={c.key} className="min-w-0">
+                      <dt className="font-semibold text-quantum-navy/55">{c.label}</dt>
+                      <dd className="font-bold text-quantum-navy/85 break-words">{c.cell(m, kind)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }
 
 function formatBytes(bytes: number) {
@@ -27,7 +175,7 @@ function formatBytes(bytes: number) {
 const TEST_SUITES_CONFIG = [
   { id: 'nist', name: 'NIST SP 800-22', desc: '15 Statistical Tests', minBytes: 125000, warning: 'Requires at least 125 KB / 1,000,000 bits (Current: {current_size}) for Linear Complexity & Universal tests.' },
   { id: 'testu01', name: 'TestU01 Suite', desc: 'Alphabit + Rabbit Batteries', minBytes: 131072, warning: 'Requires at least 128 KB (Current: {current_size}). SmallCrush also runs on inputs over ~910 MB.' },
-  { id: 'dieharder', name: 'Dieharder', desc: '25 Reliable Tests, Standard Settings', minBytes: 8388608, warning: 'Dieharder needs hundreds of MB for most tests (Current: {current_size}). Tests that would reuse data are reported as insufficient.' },
+  { id: 'dieharder', name: 'Dieharder', desc: 'Full dieharder -a set: 114 tests', minBytes: 8388608, warning: 'Dieharder needs hundreds of MB for most tests (Current: {current_size}). Tests that would reuse data are reported as insufficient.' },
   { id: 'compression', name: 'Compression Tests', desc: 'Gzip, LZMA, Bzip2, Deflate', minBytes: 64000, warning: 'Requires at least 64 KB (Current: {current_size}) to avoid archive header bias.' },
   { id: 'performance', name: 'Performance Metrics', desc: 'Shannon Entropy • Min Entropy • Bias', minBytes: 2048, warning: 'Requires at least 2 KB (Current: {current_size}) for entropy & bias convergence.' }
 ];
@@ -59,6 +207,8 @@ export default function AnalyzePage() {
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [toast, setToast] = useState('');
+  // Output length every method is deep-tested on (TestU01 / Dieharder).
+  const [deepBytes, setDeepBytes] = useState(100 * 1024 * 1024);
   const [upload, setUpload] = useState<(UploadProgress & { speed: number }) | null>(null);
 
   const [isFetching, setIsFetching] = useState(false);
@@ -188,7 +338,8 @@ export default function AnalyzePage() {
         (p: UploadProgress) => {
           const elapsed = (Date.now() - uploadStartedAt) / 1000;
           setUpload({ loaded: p.loaded, total: p.total, speed: elapsed > 0.5 ? p.loaded / elapsed : 0 });
-        }
+        },
+        deepBytes
       );
       setResult(res);
       setStatus('complete');
@@ -383,50 +534,13 @@ export default function AnalyzePage() {
               </div>
 
               <TerminalCard title="Performance Rankings">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse font-sans font-medium whitespace-nowrap">
-                    <thead>
-                      <tr className="text-quantum-navy border-b border-quantum-light">
-                        <th className="py-3 px-4 font-bold">Rank</th>
-                        <th className="py-3 px-4 font-bold">Method</th>
-                        <th className="py-3 px-4 font-bold">Score</th>
-                        {selectedTests.has('nist') && <th className="py-3 px-4 font-bold">NIST</th>}
-                        {selectedTests.has('compression') && <th className="py-3 px-4 font-bold">Compress</th>}
-                        {selectedTests.has('testu01') && <th className="py-3 px-4 font-bold">TestU01</th>}
-                        {selectedTests.has('dieharder') && <th className="py-3 px-4 font-bold">Dieharder</th>}
-                        {selectedTests.has('performance') && (
-                          <>
-                            <th className="py-3 px-4 font-bold">Shannon</th>
-                            <th className="py-3 px-4 font-bold">Min Ent</th>
-                            <th className="py-3 px-4 font-bold">Bias</th>
-                            <th className="py-3 px-4 font-bold text-right">Throughput</th>
-                          </>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="text-quantum-navy/80">
-                      {result.rankedMethods.map((m, i) => (
-                        <tr key={m.method} className={`border-b border-quantum-light/50 hover:bg-quantum-light/10 transition-colors ${i === 0 ? 'bg-quantum-blue/5' : ''}`}>
-                          <td className="py-3 px-4 text-xs font-bold">{i + 1}</td>
-                          <td className={`py-3 px-4 font-bold ${i === 0 ? 'text-quantum-blue' : 'text-quantum-navy'}`}>{m.method.replace(/^\d+\.\s+/, '')}</td>
-                          <td className="py-3 px-4 text-xs font-bold">{m.score.toFixed(1)}</td>
-                          {selectedTests.has('nist') && <td className="py-3 px-4 text-xs font-bold">{m.nistPass}/16</td>}
-                          {selectedTests.has('compression') && <td className="py-3 px-4 text-xs font-bold">{m.compressionPass ?? 0}/4</td>}
-                          {selectedTests.has('testu01') && <td className="py-3 px-4 text-xs font-bold">{m.testu01Total ? `${m.testu01Pass ?? 0}/${m.testu01Total}` : 'n/a'}</td>}
-                          {selectedTests.has('dieharder') && <td className="py-3 px-4 text-xs font-bold">{m.dieharderTotal ? `${m.dieharderPass ?? 0}/${m.dieharderTotal}` : 'n/a'}</td>}
-                          {selectedTests.has('performance') && (
-                            <>
-                              <td className="py-3 px-4 text-xs font-bold">{m.shannon.toFixed(4)}</td>
-                              <td className="py-3 px-4 text-xs font-bold">{m.minEntropy.toFixed(4)}</td>
-                              <td className="py-3 px-4 text-xs font-bold">{m.bias.toFixed(4)}</td>
-                              <td className="py-3 px-4 text-xs font-bold text-right">{Math.round(m.bitRate).toLocaleString()} bps</td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <RankingTable result={result} selectedTests={selectedTests} />
+                <p className="mt-4 text-xs text-quantum-navy/60 font-medium leading-relaxed">
+                  Scores count every TestU01 and Dieharder test, with skipped tests counting as not passed. NIST is scored on the tests that apply to the sample: NIST defines a not-applicable test (n/a) as neither a pass nor a fail.
+                  {result.deepOutputBytes ? ` TestU01 and Dieharder ran on the same ${formatBytes(result.deepOutputBytes)} of output for every method; methods that could not produce that much are listed but not ranked.` : ''}
+                  {result.deepOutputBytes === 0 ? ' TestU01 and Dieharder ran on the full output of each method over the whole file, so the amount of data differs between methods: methods that keep less of their input have more tests skipped.' : ''}
+                  {selectedTests.has('dieharder') ? ' Dieharder is scored out of all 114 tests of dieharder -a for every method; tests that would need more data than the tested output are skipped and count as not passed, rather than being run on reused data.' : ''}
+                </p>
               </TerminalCard>
             </div>
           )}
@@ -573,6 +687,27 @@ const isSelected = selectedMethods.has(m.id);
                     );
                   })}
                 </div>
+                {(selectedTests.has('testu01') || selectedTests.has('dieharder')) && (
+                  <div className="mt-5 pt-4 border-t border-quantum-light flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <label htmlFor="deep-bytes" className="text-sm font-bold text-quantum-navy whitespace-nowrap">Output tested per method</label>
+                    <select
+                      id="deep-bytes"
+                      value={deepBytes}
+                      onChange={e => setDeepBytes(Number(e.target.value))}
+                      className="rounded-lg border border-quantum-light bg-white px-3 py-2 text-sm font-semibold text-quantum-navy"
+                    >
+                      {(limits?.deepOutputOptions ?? [32, 64, 100, 256].map(m => m * 1024 * 1024).concat(0)).map(b => (
+                        <option key={b} value={b}>{b === 0 ? 'Full output (whole file)' : formatBytes(b)}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-quantum-navy/60 font-medium leading-snug">
+                      {deepBytes === 0
+                        ? 'Each method is tested on all the output it produces from your whole file. Totals stay the same for every method, but the amount of data differs: methods that keep less of their input have more tests skipped, which count as not passed.'
+                        : 'TestU01 and Dieharder test every method on exactly this much output. A method that cannot produce it from your file is listed but not ranked.'}
+                      {file ? ` Your file is ${formatBytes(file.size)}.` : ''}
+                    </p>
+                  </div>
+                )}
               </TerminalCard>
             </div>
           </div>

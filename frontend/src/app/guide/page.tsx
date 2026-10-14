@@ -29,9 +29,9 @@ const ADVANCED_SUITES = [
   {
     icon: Dices,
     name: 'Dieharder',
-    summary: 'The 25 tests Dieharder itself rates "Good", at standard settings.',
-    detail: 'Most tests read hundreds of MB. When an input is too short, Dieharder would silently rewind and retest the same data, so those tests are reported as insufficient instead of counted. rgb_minimum_distance is excluded: run alone, it fails even Dieharder\u2019s built-in AES generator.',
-    facts: ['25 tests', 'Standard settings', 'No reused data', 'Linux, or WSL on Windows'],
+    summary: 'All 114 tests of dieharder -a, at standard settings.',
+    detail: 'Every method is tested on the same amount of output (chosen on the Analyze page). Most entries read hundreds of MB; one that would need more than that is reported as skipped and counts as not passed, rather than being run on reused data, which dieharder -a does silently. Like dieharder -a, all 114 count, including the 4 that Dieharder itself rates Suspect or Do Not Use.',
+    facts: ['114 tests', 'Same denominator for every method', 'Same output length per method', 'No reused data', 'Linux, or WSL on Windows'],
   },
 ];
 
@@ -121,8 +121,8 @@ export default function GuidePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 border border-purple-200 rounded-xl bg-purple-50/50 shadow-sm hover:shadow-md hover:border-purple-300 transition-all duration-300">
                   <div className="mb-3 sm:mb-0">
                     <h3 className="font-bold text-purple-800 text-lg">Tier 3: Dieharder</h3>
-                    <p className="text-sm text-purple-700 font-medium mt-1">42 MB &le; Input &le; {formatSize(limits.maxFileSize, false)}</p>
-                    <p className="text-xs text-purple-600/80 font-medium mt-1">Adds Dieharder, run on the whole file for every extractor. The first tests need 42 MB; around 500 MB covers most of them. Tests that would have to reuse data are reported as insufficient.</p>
+                    <p className="text-sm text-purple-700 font-medium mt-1">Output tested per method: 32 MiB to 256 MiB (up to {formatSize(limits.maxFileSize, false)} input)</p>
+                    <p className="text-xs text-purple-600/80 font-medium mt-1">Every method is tested on the same amount of output, so methods that keep less of their input need a larger file: at 100 MiB, a method that keeps 1/4 of its input needs a 400 MiB file. Methods that cannot reach the chosen length are listed but not ranked. On a 500 MB raw file, about 65 of the 114 Dieharder tests can run; the rest need more data.</p>
                   </div>
                   <div className="sm:text-right flex sm:block items-center justify-between flex-shrink-0 sm:ml-4">
                     <span className="inline-block px-4 py-1.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full sm:mb-1.5">Heavy Load</span>

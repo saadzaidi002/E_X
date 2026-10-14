@@ -378,6 +378,18 @@ export function CompressionChart({ data }: ChartProps) {
   );
 }
 
+// Axis that ends exactly at the suite's total (e.g. 114) instead of the next
+// "nice" number (120), with evenly spaced ticks plus the total itself.
+function totalAxisTicks(total: number) {
+  const step = [1, 2, 5, 10, 15, 20, 25, 30, 50, 100, 200, 500].find(s => s >= total / 5) ?? Math.ceil(total / 5);
+  const ticks: number[] = [];
+  for (let v = 0; v < total; v += step) {
+    if (total - v >= step * 0.5 || v === 0) ticks.push(v);
+  }
+  ticks.push(total);
+  return ticks;
+}
+
 export function TestU01Chart({ data }: ChartProps) {
   const animate = useEntryAnimation();
   // Placeholder bar height for inputs with no result: the largest real test count.
@@ -404,7 +416,7 @@ export function TestU01Chart({ data }: ChartProps) {
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
-          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} domain={[0, maxTotal]} ticks={totalAxisTicks(maxTotal)} allowDataOverflow />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
           <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
           <Bar isAnimationActive={animate} dataKey="pass" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 4, 4]} animationBegin={0} animationDuration={800} />
@@ -420,17 +432,21 @@ export function TestU01Chart({ data }: ChartProps) {
 export function DieharderChart({ data }: ChartProps) {
   const animate = useEntryAnimation();
   // Tests Dieharder could not run without reusing (rewinding) the input count as insufficient.
+  // Every method is scored out of the same total (114, all of dieharder -a).
+  const suiteTotal = Math.max(1, ...data.map(d => (d.dieharder?.error ? 0 : d.dieharder?.total || 0)));
   const processedData = data.map(d => {
     const dh = d.dieharder || {};
-    const skipped = dh.insufficient_tests?.length || 0;
+    // Result lines that could not run without reusing data (same unit as pass/weak/fail).
+    const skipped = dh.skipped ?? (dh.insufficient_tests?.length || 0);
     const hasResults = !dh.error && !!dh.total;
     return {
       method: d.method,
       pass: hasResults ? dh.pass || 0 : 0,
       weak: hasResults ? dh.weak || 0 : 0,
       fail: hasResults ? dh.fail || 0 : 0,
-      invalid: hasResults ? skipped : Math.max(skipped, 1),
-      total: (hasResults ? dh.total : 0) + skipped
+      // Not tested at all (e.g. output too short to be ranked): one full grey bar.
+      invalid: hasResults ? skipped : suiteTotal,
+      total: suiteTotal
     };
   });
   const sortedData = [...processedData].sort((a, b) => {
@@ -444,7 +460,7 @@ export function DieharderChart({ data }: ChartProps) {
         <BarChart data={sortedData} margin={{ top: 20, right: 30, left: 0, bottom: 45 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#90E0EF" vertical={false} opacity={0.5} />
           <XAxis dataKey="method" stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 10, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={45} tickFormatter={formatShortName} />
-          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+          <YAxis stroke="#0077B6" tick={{ fill: '#0077B6', fontSize: 12, fontFamily: 'var(--font-sans)', fontWeight: 600 }} axisLine={false} tickLine={false} domain={[0, suiteTotal]} ticks={totalAxisTicks(suiteTotal)} allowDataOverflow />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: '#CAF0F8', opacity: 0.5 }} />
           <Legend wrapperStyle={{ fontSize: 13, paddingTop: '10px', fontWeight: 600, color: '#03045E' }} iconType="circle" />
           <Bar isAnimationActive={animate} dataKey="pass" name="Pass" stackId="a" fill="#0077B6" radius={[0, 0, 0, 0]} animationBegin={0} animationDuration={800} />

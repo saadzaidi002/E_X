@@ -30,9 +30,14 @@ def calculate_metrics(bits, original_length, exec_time=0.0):
     return {'total': total, 'bias': bias, 'shannon': shannon, 'min_entropy': min_entropy,
             'bit_rate': bit_rate, 'efficiency': efficiency, 'time_sec': exec_time}
 
-def run_nist_suite(bits):
+def run_nist_suite(bits, excursion_bits=None):
+    """NIST SP 800-22 on its (normally a 1,000,000-bit sample). The two Random
+    Excursions tests are only valid with at least 500 excursion cycles, which a
+    1,000,000-bit sample often lacks; when a longer excursion_bits sequence is
+    given they run on that instead, so they apply almost every time."""
     bits = np.asarray(bits, dtype=np.int8)
     length = len(bits)
+    exc_bits = bits if excursion_bits is None or len(excursion_bits) <= length else np.asarray(excursion_bits, dtype=np.int8)
 
     p_values = []
     
@@ -104,8 +109,8 @@ def run_nist_suite(bits):
         record_test("Approximate Entropy", single(safe_run(NISTFast.approximate_entropy_test, bits)))
         record_test("Cumulative Sums (Fwd)", single(safe_run(NISTFast.cumulative_sums_test, bits, mode=0)))
         record_test("Cumulative Sums (Bwd)", single(safe_run(NISTFast.cumulative_sums_test, bits, mode=1)))
-        record_test("Random Excursions", excursions_combined(safe_run(NISTFast.random_excursions_test, bits)))
-        record_test("Random Excursions Variant", excursions_combined(safe_run(NISTFast.random_excursions_variant_test, bits)))
+        record_test("Random Excursions", excursions_combined(safe_run(NISTFast.random_excursions_test, exc_bits)))
+        record_test("Random Excursions Variant", excursions_combined(safe_run(NISTFast.random_excursions_variant_test, exc_bits)))
 
     passes = sum(1 for p in p_values if (not math.isnan(p)) and p != -1.0 and p >= 0.01)
     fails = sum(1 for p in p_values if (not math.isnan(p)) and p != -1.0 and 0 <= p < 0.01)

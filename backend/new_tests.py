@@ -96,23 +96,6 @@ TU01_MAX_BITS = 2 ** 25
 # SmallCrush reads 227,097,303 32-bit words (measured); smaller files would be rewound.
 SMALLCRUSH_MIN_BYTES = 227_097_303 * 4
 
-# Dieharder tests rated "Good" by `dieharder -l` (5, 6, 7 are "Suspect", 14 is
-# "Do Not Use"; 200 prints nothing without -n; 201 run on its own fails even
-# Dieharder's built-in AES_OFB and mt19937 generators), run at standard settings.
-# Values: a lower bound on the bytes each test reads, measured from how often it
-# rewound an 8 MiB file (rewinds x 8 MiB). Inputs below the bound are skipped
-# without running; anything else still has to finish without rewinding.
-_MIB8 = 8 * 1024 * 1024
-DIEHARDER_TESTS = {
-    0: 6 * _MIB8, 1: 52 * _MIB8, 2: 65 * _MIB8, 3: 33 * _MIB8, 4: 17 * _MIB8,
-    8: 7 * _MIB8, 9: 65 * _MIB8, 10: 5 * _MIB8, 11: 5 * _MIB8, 12: 5 * _MIB8,
-    13: 114 * _MIB8, 15: 9 * _MIB8, 16: 68 * _MIB8, 17: 958 * _MIB8,
-    100: 9 * _MIB8, 101: 9 * _MIB8, 102: 9 * _MIB8, 202: 28 * _MIB8, 203: 52 * _MIB8,
-    204: 9 * _MIB8, 205: 78 * _MIB8, 206: 10 * _MIB8, 207: 58 * _MIB8, 208: 18 * _MIB8,
-    209: 35 * _MIB8,
-}
-
-
 def _to_linux_path(path):
     if os.name != "nt":
         return path
@@ -247,31 +230,99 @@ def run_testu01_suite(bits=None, path=None):
     }
 
 
+# Dieharder, run the way `dieharder -a` runs it: the same 114 result lines from
+# the same tests and ntuple variants. Each entry is run on its own against the
+# start of the file, and an entry whose data would have to be reused (Dieharder
+# silently rewinds a short file) is reported as skipped, never counted.
+#
+# Table values: (test, ntup or None, name, result lines, reliability, rewinds on
+# an 8 MiB file). Data read >= rewinds x 8 MiB, which is used to skip entries
+# that cannot fit without running them; anything else must also finish without
+# rewinding. Reliability is Dieharder's own rating from `dieharder -l`; like
+# `dieharder -a`, all 114 entries are run and scored, including the ones it rates
+# "Suspect" or "Do Not Use" (their rating is kept for display).
+_MIB8 = 8 * 1024 * 1024
+# rgb_lagged_sum reads (52 + 47.67 n) x 8 MiB for ntup n (measured for n = 0..15);
+# rounded down, so it stays a lower bound.
+_LAGGED_SUM_REWINDS = [int(52 + 47.67 * n) for n in range(33)]
+_A_ENTRIES = [
+    (0, None, "diehard_birthdays", 1, "good", 6),
+    (1, None, "diehard_operm5", 1, "good", 52),
+    (2, None, "diehard_rank_32x32", 1, "good", 65),
+    (3, None, "diehard_rank_6x8", 1, "good", 33),
+    (4, None, "diehard_bitstream", 1, "good", 17),
+    (5, None, "diehard_opso", 1, "suspect", 104),
+    (6, None, "diehard_oqso", 1, "suspect", 71),
+    (7, None, "diehard_dna", 1, "suspect", 36),
+    (8, None, "diehard_count_1s_str", 1, "good", 7),
+    (9, None, "diehard_count_1s_byt", 1, "good", 65),
+    (10, None, "diehard_parking_lot", 1, "good", 5),
+    (11, None, "diehard_2dsphere", 1, "good", 5),
+    (12, None, "diehard_3dsphere", 1, "good", 5),
+    (13, None, "diehard_squeeze", 1, "good", 114),
+    (14, None, "diehard_sums", 1, "do not use", 4),
+    (15, None, "diehard_runs", 2, "good", 9),
+    (16, None, "diehard_craps", 2, "good", 68),
+    (17, None, "marsaglia_tsang_gcd", 2, "good", 958),
+    (100, None, "sts_monobit", 1, "good", 9),
+    (101, None, "sts_runs", 1, "good", 9),
+    (102, None, "sts_serial", 30, "good", 9),
+] + [(200, n, "rgb_bitdist", 1, "good", r) for n, r in zip(range(1, 13), (14, 23, 33, 42, 52, 61, 71, 81, 90, 100, 109, 119))] \
+  + [(201, n, "rgb_minimum_distance", 1, "good", r) for n, r in zip(range(2, 6), (14, 19, 23, 28))] \
+  + [(202, n, "rgb_permutations", 1, "good", r) for n, r in zip(range(2, 6), (14, 19, 23, 28))] \
+  + [(203, n, "rgb_lagged_sum", 1, "good", r) for n, r in zip(range(0, 33), _LAGGED_SUM_REWINDS)] \
+  + [
+    (204, None, "rgb_kstest_test", 1, "good", 9),
+    (205, None, "dab_bytedistrib", 1, "good", 78),
+    (206, None, "dab_dct", 1, "good", 10),
+    (207, None, "dab_filltree", 2, "good", 58),
+    (208, None, "dab_filltree2", 2, "good", 18),
+    (209, None, "dab_monobit2", 1, "good", 35),
+]
+DIEHARDER_ENTRIES = [
+    {"test": t, "ntup": n, "name": name, "lines": lines, "reliability": rel, "need": rw * _MIB8}
+    for t, n, name, lines, rel, rw in _A_ENTRIES
+]
+DIEHARDER_TOTAL_LINES = sum(e["lines"] for e in DIEHARDER_ENTRIES)           # 114, as in `dieharder -a`
+DIEHARDER_SCORED_LINES = DIEHARDER_TOTAL_LINES                             # every entry counts, as in `dieharder -a`
+
+
+def _entry_label(e):
+    return f"{e['name']}" + (f" (ntup {e['ntup']})" if e["ntup"] is not None else "")
+
+
 def run_dieharder_suite(bits=None, path=None):
-    """Runs every Dieharder test rated "Good" at standard settings. Dieharder
-    silently rewinds a file that is too short and keeps testing reused data,
-    so any test that rewound is reported as insufficient and not counted."""
+    """Runs the `dieharder -a` set of tests, entry by entry, at standard settings.
+    Returns counts over all 114 result lines: passed / weak / failed / skipped
+    (not enough data to run without reusing it). `total` is 114 for every input."""
     path, size, owned = _bits_or_path(bits, path)
-    insufficient = [{"test": t, "reason": f"needs more than {need:,} bytes, input has {size:,}"}
-                    for t, need in DIEHARDER_TESTS.items() if size < need]
-    runnable = [t for t, need in DIEHARDER_TESTS.items() if size >= need]
+    plan, entries_out = [], []
+    for i, e in enumerate(DIEHARDER_ENTRIES):
+        if size < e["need"]:
+            entries_out.append({"label": _entry_label(e), "lines": e["lines"], "status": "skipped",
+                                "reason": f"needs more than {e['need'] / 2**20:,.0f} MiB, input has {size / 2**20:,.0f} MiB"})
+        else:
+            plan.append(i)
+            entries_out.append(None)
     try:
-        if not runnable:
-            return {"error": f"Insufficient data: every Dieharder test needs more than {size:,} bytes.",
-                    "insufficient": True, "insufficient_tests": insufficient}
-        src = shlex.quote(_to_linux_path(path))
-        lines = [
-            "command -v dieharder >/dev/null || { echo 'dieharder not installed: sudo apt install dieharder'; exit 3; }",
-            f"f=$(mktemp); cp {src} \"$f\"",
-        ]
-        for t in runnable:
-            lines.append(f"echo '=== {t}'; dieharder -d {t} -g 201 -f \"$f\" 2>&1")
-        lines.append("rm -f \"$f\"")
-        output = _run_linux("\n".join(lines) + "\n", timeout=3600)
+        if plan:
+            src = shlex.quote(_to_linux_path(path))
+            lines = [
+                "command -v dieharder >/dev/null || { echo 'dieharder not installed: sudo apt install dieharder'; exit 3; }",
+                f"f=$(mktemp); cp {src} \"$f\"",
+            ]
+            for i in plan:
+                e = DIEHARDER_ENTRIES[i]
+                ntup = f" -n {e['ntup']}" if e["ntup"] is not None else ""
+                lines.append(f"echo '=== {i}'; dieharder -d {e['test']}{ntup} -g 201 -f \"$f\" 2>&1")
+            lines.append("rm -f \"$f\"")
+            output = _run_linux("\n".join(lines) + "\n", timeout=3 * 3600)
+        else:
+            output = ""
     except FileNotFoundError:
         return {"error": "Dieharder needs Linux: install WSL with Ubuntu on Windows."}
     except subprocess.TimeoutExpired:
-        return {"error": "Dieharder execution timed out after 60 minutes."}
+        return {"error": "Dieharder execution timed out after 3 hours."}
     except Exception as e:
         return {"error": f"Failed to execute Dieharder: {e}"}
     finally:
@@ -281,10 +332,12 @@ def run_dieharder_suite(bits=None, path=None):
             except OSError:
                 pass
 
+    sections = _sections(output)
     tests = []
-    for label, out in _sections(output).items():
+    for i in plan:
+        e = DIEHARDER_ENTRIES[i]
         rewinds, rows = 0, []
-        for line in out:
+        for line in sections.get(str(i), []):
             m = re.search(r"rewound (\d+) times", line)
             if m:
                 rewinds = int(m.group(1))
@@ -297,25 +350,33 @@ def run_dieharder_suite(bits=None, path=None):
                 rows.append({"name": parts[0], "ntup": parts[1], "tsamples": parts[2],
                              "psamples": parts[3], "p_value": round(p_val, 8), "result": parts[5]})
         if rewinds:
-            insufficient.append({"test": int(label), "name": rows[0]["name"] if rows else label,
-                                 "reason": f"input too short; Dieharder rewound it {rewinds} times"})
-        elif rows:
+            entries_out[i] = {"label": _entry_label(e), "lines": e["lines"], "status": "skipped",
+                              "reason": f"input too short; Dieharder rewound it {rewinds} times"}
+        elif not rows:
+            entries_out[i] = {"label": _entry_label(e), "lines": e["lines"], "status": "skipped", "reason": "no output"}
+        else:
+            entries_out[i] = {"label": _entry_label(e), "lines": len(rows), "status": "run"}
             tests.extend(rows)
 
     pass_count = sum(r["result"] == "PASSED" for r in tests)
     weak_count = sum(r["result"] == "WEAK" for r in tests)
     fail_count = sum(r["result"] == "FAILED" for r in tests)
-    total = pass_count + weak_count + fail_count
-    if total == 0:
-        return {"error": f"Insufficient data: every Dieharder test needs more than {size:,} bytes.",
-                "insufficient": True, "insufficient_tests": insufficient}
-    return {
+    skipped = sum(x["lines"] for x in entries_out if x["status"] == "skipped")
+    excluded = sum(x["lines"] for x in entries_out if x["status"] == "excluded")
+    result = {
         "bytes_tested": size,
         "tests": tests,
-        "insufficient_tests": insufficient,
+        "entries": entries_out,
+        "insufficient_tests": [x for x in entries_out if x["status"] == "skipped"],
         "pass": pass_count,
-        "fail": fail_count,
         "weak": weak_count,
-        "total": total,
-        "pass_rate": round(pass_count / total, 3),
+        "fail": fail_count,
+        "skipped": skipped,
+        "excluded": excluded,
+        "total": DIEHARDER_SCORED_LINES,
+        "all_entries": DIEHARDER_TOTAL_LINES,
+        "pass_rate": round(pass_count / DIEHARDER_SCORED_LINES, 3),
     }
+    if not tests:
+        result["insufficient"] = True
+    return result

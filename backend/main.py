@@ -26,7 +26,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -55,6 +55,19 @@ MAX_WORKERS = int(os.environ.get("RNG_MAX_WORKERS", min(os.cpu_count() or 4, 4))
 DEEP_SUITES = ("testu01", "dieharder")
 STREAM_CHUNK_BITS = 2 ** 24
 RAW_METHOD = "Raw (Baseline)"
+# Every method is deep-tested on the same amount of output, so all of them face
+# the same tests: an extractor keeps reading input until it has produced this
+# much, and one that cannot reach it from the uploaded file is not ranked.
+MIB = 2 ** 20
+# 0 = full output: each method is tested on everything it produces from the whole
+# file (amounts then differ between methods; nothing is excluded from the ranking).
+FULL_OUTPUT = 0
+DEEP_OUTPUT_OPTIONS = [32 * MIB, 64 * MIB, 100 * MIB, 256 * MIB, FULL_OUTPUT]
+DEFAULT_DEEP_BYTES = 100 * MIB
+# NIST's Random Excursions tests need >= 500 excursion cycles; a 1,000,000-bit
+# sample often has fewer, so those two run on up to this many bits.
+EXCURSION_BITS = 10_000_000
+NIST_TOTAL = 16
 
 @app.get("/api/methods")
 def get_methods():
@@ -72,6 +85,8 @@ def get_limits():
         # upload this many bytes of the file (binary / ASCII '0'-'1' text).
         "exportBinaryBytes": upload_bytes_needed(False, MAX_ANALYSIS_BITS),
         "exportTextBytes": upload_bytes_needed(True, MAX_ANALYSIS_BITS),
+        "deepOutputOptions": DEEP_OUTPUT_OPTIONS,
+        "defaultDeepBytes": DEFAULT_DEEP_BYTES,
         "message": ""
     }
 
@@ -132,9 +147,10 @@ def iter_file_bits(path: str, is_text: bool, chunk_bits: int = STREAM_CHUNK_BITS
     if len(carry):
         yield carry
 
-def stream_to_packed_file(src_path: str, is_text: bool, func=None):
-    """Apply func segment by segment over the whole file (or copy the raw bits when
-    func is None) into a packed binary temp file. Returns (path, bits_written)."""
+def stream_to_packed_file(src_path: str, is_text: bool, func=None, max_out_bits=None):
+    """Apply func segment by segment over the file (or copy the raw bits when func is
+    None) into a packed binary temp file, stopping once max_out_bits have been
+    written. Returns (path, bits_written)."""
     fd, out_path = tempfile.mkstemp(suffix=".bin")
     pending = np.empty(0, dtype=np.int8)
     written = 0
@@ -143,29 +159,42 @@ def stream_to_packed_file(src_path: str, is_text: bool, func=None):
             bits = func(chunk) if func else chunk
             bits = np.concatenate((pending, np.asarray(bits, dtype=np.int8))) if len(pending) else np.asarray(bits, dtype=np.int8)
             n = len(bits) // 8 * 8
+            if max_out_bits is not None:
+                n = min(n, max_out_bits - written)
             out.write(np.packbits(bits[:n]).tobytes())
             pending = bits[n:]
             written += n
+            if max_out_bits is not None and written >= max_out_bits:
+                break
     return out_path, written
 
-def run_deep_suites(name: str, src_path: str, is_text: bool, selected_tests: list):
-    """TestU01 and Dieharder on the named extractor's output over the whole file."""
+def run_deep_suites(name: str, src_path: str, is_text: bool, selected_tests: list, deep_bytes: int = DEFAULT_DEEP_BYTES):
+    """TestU01 and Dieharder on exactly deep_bytes of the named method's output, so
+    every method is tested on the same amount of data. A method that cannot
+    produce that much from the file is reported as insufficient output."""
     start = time.time()
-    if name == RAW_METHOD and not is_text:
-        path, owned = src_path, False
-    else:
-        path, _ = stream_to_packed_file(src_path, is_text, None if name == RAW_METHOD else METHODS_DICT[name])
-        owned = True
+    func = None if name == RAW_METHOD else METHODS_DICT[name]
+    full = deep_bytes == FULL_OUTPUT
+    path, written = stream_to_packed_file(src_path, is_text, func, max_out_bits=None if full else deep_bytes * 8)
+    out_bytes = written // 8
     try:
-        tu01 = run_testu01_suite(path=path) if "testu01" in selected_tests else {"pass": 0, "fail": 0, "error": True}
-        dh = run_dieharder_suite(path=path) if "dieharder" in selected_tests else {"pass": 0, "weak": 0, "fail": 0, "error": True}
+        if not full and out_bytes < deep_bytes:
+            short = {
+                "insufficient": True, "insufficient_output": True,
+                "output_bytes": out_bytes, "target_bytes": deep_bytes,
+                "error": f"Output too short: produced {out_bytes / MIB:,.1f} MiB of the {deep_bytes / MIB:,.0f} MiB every method is tested on",
+            }
+            tu01 = dict(short) if "testu01" in selected_tests else {"pass": 0, "fail": 0, "error": True}
+            dh = dict(short) if "dieharder" in selected_tests else {"pass": 0, "weak": 0, "fail": 0, "error": True}
+        else:
+            tu01 = run_testu01_suite(path=path) if "testu01" in selected_tests else {"pass": 0, "fail": 0, "error": True}
+            dh = run_dieharder_suite(path=path) if "dieharder" in selected_tests else {"pass": 0, "weak": 0, "fail": 0, "error": True}
     finally:
-        if owned:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-    return name, tu01, dh, time.time() - start
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+    return name, tu01, dh, time.time() - start, out_bytes
 
 def upload_bytes_needed(is_text: bool, max_bits: int) -> int:
     """Bytes of a file that hold max_bits bits (text files get 25% slack for separators)."""
@@ -185,14 +214,14 @@ def analyze_single_method(name, input_bits, selected_tests, total_bits, MAX_STAT
     func = METHODS_DICT.get(name)
     if not func:
         return None, None
-        
+
     start = time.time()
     extracted = func(input_bits)
     exec_time = time.time() - start
-    
+
     stat_bits_ext = extracted[:MAX_STAT_BITS] if len(extracted) > MAX_STAT_BITS else extracted
     ext_len = len(extracted)
-    
+
     if "performance" in selected_tests:
         if ext_len < MIN_BITS_MAP["performance"]:
             metrics = get_skipped_payload("performance", MIN_BITS_MAP["performance"])
@@ -203,15 +232,15 @@ def analyze_single_method(name, input_bits, selected_tests, total_bits, MAX_STAT
         metrics = {"shannon": 0, "min_entropy": 0, "bit_rate": 0, "bias": 0, "time_sec": exec_time}
 
     if "nist" in selected_tests:
-        nist = get_skipped_payload("nist", MIN_BITS_MAP["nist"]) if ext_len < MIN_BITS_MAP["nist"] else run_nist_suite(stat_bits_ext)
+        nist = get_skipped_payload("nist", MIN_BITS_MAP["nist"]) if ext_len < MIN_BITS_MAP["nist"] else run_nist_suite(stat_bits_ext, extracted[:EXCURSION_BITS])
     else:
         nist = {"pass": 0, "fail": 0, "invalid": 0, "total": 15, "details": []}
-        
+
     if "compression" in selected_tests:
         comp = get_skipped_payload("compression", MIN_BITS_MAP["compression"]) if ext_len < MIN_BITS_MAP["compression"] else run_compression_test(stat_bits_ext)
     else:
         comp = {"pass_count": 0, "fail_count": 0, "invalid": 0, "details": []}
-        
+
     # TestU01 / Dieharder results are filled in by run_deep_suites.
     tu01 = {"pass": 0, "fail": 0, "error": True}
     dh = {"pass": 0, "weak": 0, "fail": 0, "error": True}
@@ -232,10 +261,10 @@ def analyze_single_method(name, input_bits, selected_tests, total_bits, MAX_STAT
         "testu01": tu01,
         "dieharder": dh
     }
-    
+
     return name, chart_item
 
-def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list, selected_tests: list):
+def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list, selected_tests: list, deep_bytes: int = DEFAULT_DEEP_BYTES):
     try:
         jobs[job_id]["logs"].append("Processing file content...")
         file_size = os.path.getsize(upload_path)
@@ -251,11 +280,11 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
                 f"File is {file_size:,} bytes; analyzing the first {total_bits:,} bits "
                 f"(limit RNG_MAX_ANALYSIS_BITS={MAX_ANALYSIS_BITS:,})."
             )
-        
+
         jobs[job_id]["logs"].append(f"Running baseline Raw tests on {total_bits} bits...")
         raw_start = time.time()
         raw_elapsed = max(0.001, time.time() - raw_start)
-        
+
         # NIST SP 800-22 recommends ~1M bit sequences for statistical tests.
         # Running 42M bits through O(n^2) tests like Serial/ApproximateEntropy takes hours.
         # We sample 1M bits for stat tests but use ALL bits for entropy/throughput metrics.
@@ -263,7 +292,7 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
         stat_bits_raw = input_bits[:MAX_STAT_BITS] if total_bits > MAX_STAT_BITS else input_bits
         if total_bits > MAX_STAT_BITS:
             jobs[job_id]["logs"].append(f"Statistical tests will use {MAX_STAT_BITS:,} bit sample (NIST recommended). Metrics use all {total_bits:,} bits.")
-        
+
         if "performance" in selected_tests:
             if total_bits < MIN_BITS_MAP["performance"]:
                 raw_metrics = get_skipped_payload("performance", MIN_BITS_MAP["performance"])
@@ -274,15 +303,15 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
             raw_metrics = {"shannon": 0, "min_entropy": 0, "bit_rate": 0, "bias": 0, "time_sec": raw_elapsed}
 
         if "nist" in selected_tests:
-            raw_nist = get_skipped_payload("nist", MIN_BITS_MAP["nist"]) if total_bits < MIN_BITS_MAP["nist"] else run_nist_suite(stat_bits_raw)
+            raw_nist = get_skipped_payload("nist", MIN_BITS_MAP["nist"]) if total_bits < MIN_BITS_MAP["nist"] else run_nist_suite(stat_bits_raw, input_bits[:EXCURSION_BITS])
         else:
             raw_nist = {"pass": 0, "fail": 0, "invalid": 0, "total": 15, "details": []}
-            
+
         if "compression" in selected_tests:
             raw_comp = get_skipped_payload("compression", MIN_BITS_MAP["compression"]) if total_bits < MIN_BITS_MAP["compression"] else run_compression_test(stat_bits_raw)
         else:
             raw_comp = {"pass_count": 0, "fail_count": 0, "invalid": 0, "details": []}
-            
+
         raw_tu01 = {"pass": 0, "fail": 0, "error": True}
         raw_dh = {"pass": 0, "weak": 0, "fail": 0, "error": True}
 
@@ -303,13 +332,21 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
             "dieharder": raw_dh
         }]
         from concurrent.futures import ProcessPoolExecutor, as_completed
-        
+
         deep = [t for t in selected_tests if t in DEEP_SUITES]
         if deep:
-            jobs[job_id]["logs"].append(
-                f"Running {' + '.join(d.capitalize() if d == 'dieharder' else 'TestU01' for d in deep)} on the whole "
-                f"{file_size:,}-byte file for the baseline and every extractor. This takes several minutes per method."
-            )
+            suites = ' + '.join(d.capitalize() if d == 'dieharder' else 'TestU01' for d in deep)
+            if deep_bytes == FULL_OUTPUT:
+                jobs[job_id]["logs"].append(
+                    f"Running {suites} on the full output of the baseline and every extractor over the whole "
+                    f"{file_size:,}-byte file. Amounts of output differ between methods; this takes several minutes per method."
+                )
+            else:
+                jobs[job_id]["logs"].append(
+                    f"Running {suites} on the first {deep_bytes / MIB:,.0f} MiB of output from the baseline and every "
+                    f"extractor, read from the {file_size:,}-byte file. Every method is tested on the same amount of output; "
+                    f"this takes several minutes per method."
+                )
         deep_results = {}
         with ProcessPoolExecutor(max_workers=MAX_WORKERS) as pool:
             futures = {
@@ -318,7 +355,7 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
             }
             if deep:
                 for name in [RAW_METHOD] + [n for n in selected_method_names if n in METHODS_DICT]:
-                    futures[pool.submit(run_deep_suites, name, upload_path, is_text, deep)] = ("deep", name)
+                    futures[pool.submit(run_deep_suites, name, upload_path, is_text, deep, deep_bytes)] = ("deep", name)
             for future in as_completed(futures):
                 kind, name = futures[future]
                 try:
@@ -328,72 +365,96 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
                             chart_data.append(chart_item)
                             jobs[job_id]["logs"].append(f"Completed tests for {name}.")
                     else:
-                        _, tu01, dh, secs = future.result()
-                        deep_results[name] = (tu01, dh)
+                        _, tu01, dh, secs, out_bytes = future.result()
+                        deep_results[name] = (tu01, dh, out_bytes)
                         summary = []
-                        if "testu01" in deep:
-                            summary.append(f"TestU01 {tu01['pass']}/{tu01['total']}" if tu01.get("total") else f"TestU01: {tu01.get('error')}")
-                        if "dieharder" in deep:
-                            summary.append(f"Dieharder {dh['pass']}/{dh['total']}" if dh.get("total") else f"Dieharder: {dh.get('error')}")
+                        if tu01.get("insufficient_output") or dh.get("insufficient_output"):
+                            summary.append((tu01 if tu01.get("insufficient_output") else dh)["error"] + " (not ranked)")
+                        else:
+                            if "testu01" in deep:
+                                summary.append(f"TestU01 {tu01['pass']}/{tu01['total']}" if tu01.get("total") else f"TestU01: {tu01.get('error')}")
+                            if "dieharder" in deep:
+                                summary.append(f"Dieharder {dh['pass']} pass, {dh.get('weak', 0)} weak, {dh.get('fail', 0)} fail, "
+                                               f"{dh.get('skipped', 0)} skipped of {dh['total']}" if "total" in dh else f"Dieharder: {dh.get('error')}")
                         jobs[job_id]["logs"].append(f"Deep tests for {name} ({secs:.0f}s): {'; '.join(summary)}")
                 except Exception as e:
                     jobs[job_id]["logs"].append(f"Error in {name}: {e}")
         for d in chart_data:
             if d["method"] in deep_results:
-                d["testu01"], d["dieharder"] = deep_results[d["method"]]
+                d["testu01"], d["dieharder"], d["deepOutputBytes"] = deep_results[d["method"]]
 
 
         jobs[job_id]["logs"].append("Ranking methods and finalizing results...")
-        ranked_methods = []
-        for d in chart_data:
-            if d["method"] != "Raw (Baseline)":
-                # Tests NIST marks not applicable (e.g. Random Excursions with J < 500
-                # cycles) are neither passes nor failures, so they don't count against a method.
-                nist_decided = d["passCount"] + d["failCount"]
-                nist_rate = d["passCount"] / nist_decided if nist_decided else None
-                ent_rate = min(1.0, d["minEntropy"])
-                bias_rate = max(0, (0.5 - d["bias"]) / 0.5)
 
-                comp = d.get("compression", {})
-                comp_rate = comp["pass_count"] / 4.0 if "algorithms" in comp and not comp.get("invalid") else None
+        def score_entry(d):
+            """Score = weighted share of tests passed. TestU01 and Dieharder are scored out
+            of each suite's full size (skipped entries count as not passed), so a method
+            cannot gain by being tested less. Deep suites use the same output length for
+            every method; one that could not produce it is excluded from the ranking."""
+            # NIST: SP 800-22 treats a test that is not applicable to a sample (e.g. Random
+            # Excursions with < 500 cycles) as neither a pass nor a fail. Every method gets
+            # the same sample sizes, so n/a is a property of the data, not of how much the
+            # method was tested; it is shown but not scored.
+            nist_decided = d["passCount"] + d["failCount"]
+            nist_rate = d["passCount"] / nist_decided if "nist" in selected_tests and nist_decided else None
+            ent_rate = min(1.0, d["minEntropy"]) if "performance" in selected_tests else None
+            bias_rate = max(0, (0.5 - d["bias"]) / 0.5) if "performance" in selected_tests else None
 
-                tu01 = d.get("testu01", {})
-                tu01_rate = tu01.get("pass_rate")
+            comp = d.get("compression", {})
+            comp_rate = comp["pass_count"] / 4.0 if "algorithms" in comp and not comp.get("invalid") else None
 
-                dh = d.get("dieharder", {})
-                dh_rate = dh.get("pass_rate")
+            tu01 = d.get("testu01", {}) or {}
+            dh = d.get("dieharder", {}) or {}
+            short = tu01.get("insufficient_output") or dh.get("insufficient_output")
+            tu01_rate = tu01["pass"] / tu01["total"] if tu01.get("total") and not tu01.get("error") else None
+            dh_rate = dh["pass"] / dh["total"] if "total" in dh and "skipped" in dh else None
 
-                # Suites that were not selected, skipped, or unavailable (e.g. TestU01/Dieharder
-                # on Windows) are left out and the remaining weights rescaled to 100, instead of
-                # scoring 0 for every method and flattening the ranking into ties.
-                components = [(35, nist_rate), (20, ent_rate), (10, bias_rate),
-                              (10, comp_rate), (15, tu01_rate), (10, dh_rate)]
-                used = [(w, r) for w, r in components if r is not None]
-                score = 100 * sum(w * r for w, r in used) / sum(w for w, _ in used)
-                
-                ranked_methods.append({
-                    "method": d["method"],
-                    "score": round(score, 2),
-                    "nistPass": d["passCount"],
-                    "shannon": d["shannonEntropy"],
-                    "minEntropy": d["minEntropy"],
-                    "bias": d["bias"],
-                    "bitRate": d["bitRate"],
-                    "compressionPass": comp.get("pass_count", 0) if not comp.get("invalid") else 0,
-                    "testu01Pass": tu01.get("pass", 0) if not tu01.get("error") else 0,
-                    "testu01Total": tu01.get("total", 0) if not tu01.get("error") else 0,
-                    "dieharderPass": dh.get("pass", 0) if not (dh.get("error") or dh.get("insufficient")) else 0,
-                    "dieharderTotal": dh.get("total", 0) if not (dh.get("error") or dh.get("insufficient")) else 0
-                })
-                
-        ranked_methods.sort(key=lambda x: x["score"], reverse=True)
-        
+            components = [(35, nist_rate), (20, ent_rate), (10, bias_rate),
+                          (10, comp_rate), (15, tu01_rate), (10, dh_rate)]
+            used = [(w, r) for w, r in components if r is not None]
+            score = 100 * sum(w * r for w, r in used) / sum(w for w, _ in used) if used else 0.0
+            return {
+                "method": d["method"],
+                "score": round(score, 2),
+                "nistPass": d["passCount"],
+                "nistFail": d["failCount"],
+                "nistNa": d["invalidCount"],
+                "nistTotal": NIST_TOTAL,
+                "shannon": d["shannonEntropy"],
+                "minEntropy": d["minEntropy"],
+                "bias": d["bias"],
+                "bitRate": d["bitRate"],
+                "compressionPass": comp.get("pass_count", 0) if not comp.get("invalid") else 0,
+                "testu01Pass": tu01.get("pass", 0) if tu01_rate is not None else 0,
+                "testu01Total": tu01.get("total", 0) if tu01_rate is not None else 0,
+                "dieharderPass": dh.get("pass", 0) if dh_rate is not None else 0,
+                "dieharderWeak": dh.get("weak", 0) if dh_rate is not None else 0,
+                "dieharderFail": dh.get("fail", 0) if dh_rate is not None else 0,
+                "dieharderSkipped": dh.get("skipped", 0) if dh_rate is not None else 0,
+                "dieharderTotal": dh.get("total", 0) if dh_rate is not None else 0,
+                "deepOutputBytes": d.get("deepOutputBytes"),
+                "excluded": bool(short),
+                "excludedReason": (tu01 if tu01.get("insufficient_output") else dh).get("error") if short else None,
+            }
+
+        entries = [score_entry(d) for d in chart_data]
+        baseline = next((e for e in entries if e["method"] == RAW_METHOD), None)
+        methods_only = [e for e in entries if e["method"] != RAW_METHOD]
+        ranked_methods = sorted([e for e in methods_only if not e["excluded"]], key=lambda x: x["score"], reverse=True) \
+            + sorted([e for e in methods_only if e["excluded"]], key=lambda x: x["method"])
+
         best_method = ""
         best_explanation = ""
-        if len(ranked_methods) > 1:
-            best_method = ranked_methods[0]["method"]
-            best_explanation = f"{best_method} achieved the highest combined score, passing {ranked_methods[0]['nistPass']} NIST statistical tests while maintaining an entropy level of {ranked_methods[0]['minEntropy']:.4f} per bit."
-            
+        contenders = [e for e in ranked_methods if not e["excluded"]]
+        if contenders:
+            best_method = contenders[0]["method"]
+            tied = sum(1 for e in contenders if round(e["score"], 1) == round(contenders[0]["score"], 1))
+            best_explanation = (
+                f"{best_method} achieved the highest combined score ({contenders[0]['score']:.1f}), passing "
+                f"{contenders[0]['nistPass']} of {NIST_TOTAL} NIST tests with a min-entropy of {contenders[0]['minEntropy']:.4f} per bit."
+                + (f" {tied} methods share this score." if tied > 1 else "")
+            )
+
         def sanitize_nan(obj):
             if isinstance(obj, float) and math.isnan(obj):
                 return None
@@ -410,9 +471,11 @@ def run_analysis_job(job_id: str, upload_path: str, selected_method_names: list,
             "totalBits": total_bits,
             "fileSizeBytes": file_size,
             "chartData": chart_data,
-            "rankedMethods": ranked_methods
+            "rankedMethods": ranked_methods,
+            "baseline": baseline,
+            "deepOutputBytes": deep_bytes if any(t in DEEP_SUITES for t in selected_tests) else None,
         }
-        
+
         jobs[job_id]["result"] = sanitize_nan(response_data)
         jobs[job_id]["status"] = "complete"
         jobs[job_id]["logs"].append("Analysis complete.")
@@ -431,16 +494,18 @@ async def start_analyze(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     methods: str = Form(...),
-    tests: str = Form(...) 
+    tests: str = Form(...),
+    deepBytes: int = Form(DEFAULT_DEEP_BYTES),
 ):
     selected_method_names = json.loads(methods)
     selected_tests = json.loads(tests)
+    deep_bytes = deepBytes if deepBytes in DEEP_OUTPUT_OPTIONS else DEFAULT_DEEP_BYTES
     # Stream the upload to disk: the deep suites read the whole file, which may
     # be far larger than memory.
     fd, upload_path = tempfile.mkstemp(suffix=".upload")
     with os.fdopen(fd, "wb") as out:
         await run_in_threadpool(shutil.copyfileobj, file.file, out, 1 << 20)
-    
+
     job_id = f"analysis-{int(time.time())}-{uuid.uuid4().hex[:8]}"
     jobs[job_id] = {
         "status": "processing",
@@ -448,8 +513,8 @@ async def start_analyze(
         "result": None,
         "error": None
     }
-    
-    background_tasks.add_task(run_analysis_job, job_id, upload_path, selected_method_names, selected_tests)
+
+    background_tasks.add_task(run_analysis_job, job_id, upload_path, selected_method_names, selected_tests, deep_bytes)
     return {"job_id": job_id}
 
 @app.get("/api/analyze/status/{job_id}")
@@ -494,13 +559,13 @@ def download_bits(
 
     del input_bits
     gc.collect()
-    
+
     def cleanup():
         if os.path.exists(temp_path):
             os.remove(temp_path)
-            
+
     background_tasks.add_task(cleanup)
-    
+
     return FileResponse(
         path=temp_path,
         media_type="application/zip",
@@ -515,6 +580,8 @@ class PDFRequest(BaseModel):
     totalBits: int
     selectedTests: List[str] = []
     fileSizeBytes: Optional[int] = None
+    baseline: Optional[Dict[str, Any]] = None
+    deepOutputBytes: Optional[int] = None
 
 @app.post("/api/download/pdf")
 async def download_pdf(request: PDFRequest):
@@ -547,9 +614,10 @@ async def download_pdf(request: PDFRequest):
             "testu01": d.get("testu01", {}),
             "dieharder": d.get("dieharder", {})
         })
-    
-    pdf_buffer = generate_pdf_report(data_points, request.totalBits, safe_ranked, request.selectedTests, request.fileSizeBytes)
-    
+
+    pdf_buffer = generate_pdf_report(data_points, request.totalBits, safe_ranked, request.selectedTests, request.fileSizeBytes,
+                                     replace_none(request.baseline) if request.baseline else None, request.deepOutputBytes)
+
     return StreamingResponse(
         pdf_buffer,
         media_type="application/pdf",

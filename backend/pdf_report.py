@@ -276,7 +276,7 @@ def _suite_chart(data_points, key, title, weak_label):
             'pass': r.get('pass', 0) if ran else 0,
             'weak': r.get('weak', 0) if ran else 0,
             'fail': r.get('fail', 0) if ran else 0,
-            'skipped': len(r.get('insufficient_tests', []) or []),
+            'skipped': r.get('skipped', len(r.get('insufficient_tests', []) or [])),
             'ran': ran,
         })
     full = max([r['pass'] + r['weak'] + r['fail'] for r in rows if r['ran']] or [1])
@@ -344,7 +344,8 @@ def first_page_setup(canvas, doc):
 def later_pages_setup(canvas, doc):
     header_footer(canvas, doc)
 
-def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=None, file_size_bytes=None):
+def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=None, file_size_bytes=None,
+                        baseline=None, deep_output_bytes=None):
     if selected_tests is None:
         selected_tests = []
     pdf_buffer = io.BytesIO()
@@ -413,6 +414,9 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
 
     # --- Executive Summary ---
     elements.append(Paragraph("Executive Summary", h1_style))
+    all_methods = ranked_methods
+    excluded_methods = [m for m in all_methods if m.get('excluded')]
+    ranked_methods = [m for m in all_methods if not m.get('excluded')]
     best_method = ranked_methods[0]['method'] if ranked_methods else "N/A"
     # Methods whose score rounds to the same value as the leader are tied with it.
     tied = [m for m in ranked_methods if round(m['score'], 1) == round(ranked_methods[0]['score'], 1)] if ranked_methods else []
@@ -534,28 +538,46 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
         cols_order.extend(['shannon', 'min', 'bias', 'bps'])
 
     table_data = [headers]
-    for i, m in enumerate(ranked_methods):
-        row = [str(i + 1), format_table_name(m['method']), f"{m['score']:.1f}"]
-        if 'nist' in cols_order: row.append(f"{m['nistPass']}/16")
+    def table_row(rank_label, name, m, ranked=True):
+        deep_ok = not m.get('excluded')
+        row = [rank_label, name, f"{m['score']:.1f}" if ranked else "\u2014"]
+        if 'nist' in cols_order:
+            row.append(f"{m['nistPass']}/{m.get('nistTotal', 16)}" + (f" ({m['nistNa']} n/a)" if m.get('nistNa') else ""))
         if 'comp' in cols_order: row.append(f"{m.get('compressionPass', 0)}/4")
-        if 'u01' in cols_order: row.append(f"{m.get('testu01Pass', 0)}/{m.get('testu01Total', 0)}" if m.get('testu01Total') else "n/a")
-        if 'die' in cols_order: row.append(f"{m.get('dieharderPass', 0)}/{m.get('dieharderTotal', 0)}" if m.get('dieharderTotal') else "n/a")
+        if 'u01' in cols_order:
+            row.append(f"{m.get('testu01Pass', 0)}/{m.get('testu01Total', 0)}" if deep_ok and m.get('testu01Total') else ("—" if not deep_ok else "n/a"))
+        if 'die' in cols_order:
+            if not deep_ok:
+                row.append("not tested")
+            elif m.get('dieharderTotal'):
+                row.append(f"{m.get('dieharderPass', 0)}/{m['dieharderTotal']} ({m.get('dieharderSkipped', 0)} skip)")
+            else:
+                row.append("n/a")
         if 'performance' in selected_tests:
             row.extend([
                 f"{m['shannon']:.4f}",
                 f"{m['minEntropy']:.4f}",
                 f"{m['bias']:.5f}",
-                f"{m['bitRate'] / 1e6:,.1f}"
+                "n/a" if rank_label == "base" else f"{m['bitRate'] / 1e6:,.1f}",
             ])
-        table_data.append(row)
+        return row
 
-    colWidths = [26, 132, 32]
+    if baseline:
+        table_data.append(table_row("base", "Raw input (not ranked)", baseline, ranked=False))
+    for i, m in enumerate(ranked_methods):
+        table_data.append(table_row(str(i + 1), format_table_name(m['method']), m))
+    for m in excluded_methods:
+        table_data.append(table_row("\u2014", format_table_name(m['method']) + " *", m, ranked=False))
+
+    colWidths = [26, 118, 30]
     for col in cols_order:
-        if col in ['nist', 'comp', 'u01', 'die']: colWidths.append(36)
-        elif col == 'shannon': colWidths.append(44)
-        elif col == 'min': colWidths.append(44)
-        elif col == 'bias': colWidths.append(46)
-        elif col == 'bps': colWidths.append(40)
+        if col == 'nist': colWidths.append(48)
+        elif col in ['comp', 'u01']: colWidths.append(32)
+        elif col == 'die': colWidths.append(66)
+        elif col == 'shannon': colWidths.append(38)
+        elif col == 'min': colWidths.append(38)
+        elif col == 'bias': colWidths.append(42)
+        elif col == 'bps': colWidths.append(36)
 
     t = Table(table_data, colWidths=colWidths)
     t.setStyle(TableStyle([
@@ -571,15 +593,21 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [rl_colors.white, rl_colors.HexColor('#F1F5F9')]),
         ('GRID', (0, 0), (-1, -1), 0.5, rl_colors.HexColor('#E2E8F0')),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-    ]))
+        ('FONTSIZE', (0, 1), (-1, -1), 7.5),
+    ] + ([('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Oblique')] if baseline else [])
+      + ([('TEXTCOLOR', (0, len(table_data) - len(excluded_methods)), (-1, -1), rl_colors.HexColor('#8A6D3B'))] if excluded_methods else [])))
     elements.append(t)
-    notes = []
+    notes = ["Score: weighted share of tests passed out of each suite's full size, scaled to 100. TestU01 and Dieharder skipped tests count as not passed. Methods with equal scores are tied."]
     if 'nist' in cols_order:
-        notes.append("NIST: results passed out of 16; results not applicable to the sample are not counted against a method.")
-    if 'u01' in cols_order or 'die' in cols_order:
-        notes.append("U01 / Die.: results passed out of the tests that had enough data to run; n/a means none could run.")
-    notes.append("Score: weighted combination of the selected suites, scaled to 100. Methods with equal scores are tied.")
+        notes.append("NIST: results passed out of 16; n/a = not applicable to the sample, which NIST defines as neither pass nor fail, so it is not scored.")
+    if ('u01' in cols_order or 'die' in cols_order) and deep_output_bytes == 0:
+        notes.append("U01 / Die.: run on each method's full output over the whole file, so amounts of data differ between methods. "
+                     "Dieharder is out of all 114 tests of dieharder -a; skip = tests needing more data than the method produced, counted as not passed and never run on reused data.")
+    if ('u01' in cols_order or 'die' in cols_order) and deep_output_bytes:
+        notes.append(f"U01 / Die.: run on the same {deep_output_bytes / 2**20:,.0f} MiB of output for every method. "
+                     "Dieharder is out of all 114 tests of dieharder -a; skip = tests needing more data than that, counted as not passed and never run on reused data.")
+    if excluded_methods:
+        notes.append("* Not ranked: the method could not produce the common output length from the input file, so it could not be tested like the others.")
     elements.append(Spacer(1, 6))
     elements.append(Paragraph("<br/>".join(notes), ParagraphStyle('Note', parent=body_style, fontSize=8, leading=11, textColor=rl_colors.gray)))
     elements.append(Spacer(1, 12))
