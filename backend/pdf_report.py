@@ -608,6 +608,9 @@ def generate_pdf_report(data_points, total_bits, ranked_methods, selected_tests=
                      "Dieharder is out of all 114 tests of dieharder -a; skip = tests needing more data than that, counted as not passed and never run on reused data.")
     if excluded_methods:
         notes.append("* Not ranked: the method could not produce the common output length from the input file, so it could not be tested like the others.")
+    if 'bps' in cols_order:
+        notes.append("Mbps: throughput measured on the server that ran this analysis, so it varies between machines and between runs; "
+                     "it is shown for information and is not part of the score. The raw input is not extracted, so it has none (n/a).")
     elements.append(Spacer(1, 6))
     elements.append(Paragraph("<br/>".join(notes), ParagraphStyle('Note', parent=body_style, fontSize=8, leading=11, textColor=rl_colors.gray)))
     elements.append(Spacer(1, 12))
